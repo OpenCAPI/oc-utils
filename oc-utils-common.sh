@@ -36,6 +36,7 @@ function reset_card() {
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
   sleep 5
+  modprobe pnv-php
 
   printf "Resetting card $1: "
   sleep 3
