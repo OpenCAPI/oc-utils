@@ -30,17 +30,19 @@ sudo ./oc-flash-script.sh primary.bin secondary.bin
 sudo ./oc-reload.sh
 ```
 
-For some systems, a cold reboot is required to get new FPGA bitstream work:
+For some systems, a cold reboot is required to get the new FPGA bitstream work:
 ```
-make
 sudo ./oc-flash-script.sh primary.bin secondary.bin
 sudo reboot
 ```
 
 # Note: 
+
 Online updating had been verified on following FPGA cards with OC-Accel bitstreams:
+
 * AD9V3
 * AD9H3
+
 on System FP5290G2, IC922, S924 with specific firmware (skiboot) and OS kernels. 
 
 Contact your technical support team for more information.
