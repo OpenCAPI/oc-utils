@@ -10,7 +10,7 @@ Before contributing to this project, please read and agree to the rules in
 Compile:
 
 * **make:** make command will compile all the source codes.
-* **make install/make uninstall** Copy/Remove the executable scripts to /bin
+* **make install/make uninstall:** Copy/Remove the executable scripts in /bin
 
 Scripts:
 
@@ -38,7 +38,7 @@ sudo reboot
 ```
 
 # Note: 
-Online updating had been verified for following FPGA cards in OC-Accel supported list:
+Online updating had been verified on following FPGA cards with OC-Accel bitstreams:
 * AD9V3
 * AD9H3
 on System FP5290G2, IC922, S924 with specific firmware (skiboot) and OS kernels. 
