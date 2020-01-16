@@ -1,3 +1,5 @@
+# !UNDER DEVELOPMENT!
+
 # oc-utils
 OpenCAPI Utils, abbreviated as oc-utils, is a scripts repository to program the flash, reset card, reload flash and debug.
 
