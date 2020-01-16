@@ -41,16 +41,14 @@ endif
 
 install_point=lib/oc-utils
 
-TARGETS=oc-flash oc-reload
+TARGETS=oc-flash
 
-install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-devices
+install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-reload.sh oc-devices
 
 .PHONY: all 
 all: $(TARGETS)
 
 oc-flash: src/flsh_global_vars.c src/flsh_common_funcs.c src/flsh_main.c
-	$(CC) $(CFLAGS) $^ -o $@
-oc-reload: src/flsh_global_vars.c src/flsh_common_funcs.c src/img_reload.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 .PHONY: install
@@ -62,12 +60,15 @@ install: $(TARGETS)
 		$(prefix)/bin/oc-flash-script
 	@ln -sf $(prefix)/$(install_point)/oc-reset.sh \
 		$(prefix)/bin/oc-reset
+	@ln -sf $(prefix)/$(install_point)/oc-reload.sh \
+		$(prefix)/bin/oc-reload
 
 .PHONY: uninstall
 uninstall:
 	@rm -rf $(prefix)/$(install_point)
 	@rm -f $(prefix)/bin/oc-flash-script
 	@rm -f $(prefix)/bin/oc-reset
+	@rm -f $(prefix)/bin/oc-reload
 
 .PHONY: clean
 clean:
