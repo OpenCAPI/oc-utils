@@ -43,7 +43,7 @@ install_point=lib/oc-utils
 
 TARGETS=oc-flash
 
-install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-reload.sh oc-devices
+install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-reload.sh oc-list-cards.sh oc-devices
 
 .PHONY: all 
 all: $(TARGETS)
@@ -62,6 +62,8 @@ install: $(TARGETS)
 		$(prefix)/bin/oc-reset
 	@ln -sf $(prefix)/$(install_point)/oc-reload.sh \
 		$(prefix)/bin/oc-reload
+	@ln -sf $(prefix)/$(install_point)/oc-list-cards.sh \
+		$(prefix)/bin/oc-list-cards
 
 .PHONY: uninstall
 uninstall:
@@ -69,6 +71,7 @@ uninstall:
 	@rm -f $(prefix)/bin/oc-flash-script
 	@rm -f $(prefix)/bin/oc-reset
 	@rm -f $(prefix)/bin/oc-reload
+	@rm -f $(prefix)/bin/oc-list-cards
 
 .PHONY: clean
 clean:
