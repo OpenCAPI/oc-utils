@@ -9,11 +9,13 @@ Before contributing to this project, please read and agree to the rules in
 # Usage
 A typical use of oc-utils will follow this pattern:
 
-1. **make:** make command will compile all the source codes.
-2. **./oc-flash-script.sh primary.bin secondary.bin:** Write binary files to FLASH. You can select which card will be flashed according to the OpenCAPI card connection node.
-3. **./oc-reload.sh:** Reload the image from FLASH to FPGA core which is usually the next step of oc-flash-script
-4. **./oc-reset.sh:** Reset one CARD as you select (Sent reset signal to FPGA). You should be aware that this is only a reset operation for a specific OpenCAPI card.
-4. **./oc-list-cards.sh:** List the card programming information. 
+* **make:** make command will compile all the source codes.
+* **make install/make uninstall** Copy/Remove the executable scripts to /bin
+
+* **oc-flash-script.sh primary.bin secondary.bin:** Write binary files to FLASH. You can select which card will be flashed according to the OpenCAPI card connection node.
+* **oc-reload.sh:** Reload the image from FLASH to FPGA core which is usually the next step of oc-flash-script
+* **oc-reset.sh:** Reset one CARD as you select (Sent reset signal to FPGA). You should be aware that this is only a reset operation for a specific OpenCAPI card.
+* **oc-list-cards.sh:** List the card programming information. 
 
 Add "-h" to get more options for above scripts.
 

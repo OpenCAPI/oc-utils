@@ -33,10 +33,7 @@ function usage() {
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
   echo
-  echo "Utility to reset CAPI FPGA cards."
-  echo "Please ensure that you are aiming to reset the target FPGA Card."
-  echo "If you have flashed a new bin file to FLASH, after reseting"
-  echo "the FPGA card, the new image will be loaded into the FPGA core."
+  echo "Utility to reload FPGA image from the FPGA Flash."
   echo "Pls notify other users who you work with them on the same server."
   echo
 }
