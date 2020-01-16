@@ -7,10 +7,12 @@ Before contributing to this project, please read and agree to the rules in
 * [CONTRIBUTING.md](CONTRIBUTING.md)
 
 # Usage
-A typical use of oc-utils will follow this pattern:
+Compile:
 
 * **make:** make command will compile all the source codes.
 * **make install/make uninstall** Copy/Remove the executable scripts to /bin
+
+Scripts:
 
 * **oc-flash-script.sh primary.bin secondary.bin:** Write binary files to FLASH. You can select which card will be flashed according to the OpenCAPI card connection node.
 * **oc-reload.sh:** Reload the image from FLASH to FPGA core which is usually the next step of oc-flash-script
@@ -20,7 +22,7 @@ A typical use of oc-utils will follow this pattern:
 Add "-h" to get more options for above scripts.
 
 # Example:
-After `git clone` this repository, 
+After `git clone` this repository, call oc-flash-script and oc-reload to refresh the FPGA bitstream online. 
 
 ```
 make
@@ -28,12 +30,20 @@ sudo ./oc-flash-script.sh primary.bin secondary.bin
 sudo ./oc-reload.sh
 ```
 
+For some systems, a cold reboot is required to get new FPGA bitstream work:
+```
+make
+sudo ./oc-flash-script.sh primary.bin secondary.bin
+sudo reboot
+```
+
 # Note: 
-Have been verified for following FPGA cards in OC-Accel supported list:
+Online updating had been verified for following FPGA cards in OC-Accel supported list:
 * AD9V3
 * AD9H3
+on System FP5290G2, IC922, S924 with specific firmware (skiboot) and OS kernels. 
 
-On System FP5290G2, IC922, S924 with specific firmware (skiboot) and OS kernels. 
 Contact your technical support team for more information.
+
 
 
