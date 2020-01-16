@@ -10,7 +10,7 @@ Before contributing to this project, please read and agree to the rules in
 Compile:
 
 * **make:** make command will compile all the source codes.
-* **make install/make uninstall:** Copy/Remove the executable scripts in /bin
+* **make install/make uninstall:** Copy/Remove the executable scripts in /bin, then you can call following scripts (without .sh suffix) anywhere. This is an optional step.
 
 Scripts:
 
