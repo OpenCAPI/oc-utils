@@ -5,7 +5,7 @@
 package_root=$(dirname $package_root)
 
 # print table header
-printf "${bold}%-7s %-30s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
+printf "${bold}%-21s %-29s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
 # Find all OC cards in the system
 allcards=`ls -d -1 /sys/class/ocxl/IBM* |grep "/sys/class/ocxl/IBM," | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
 allcards_array=($allcards)
@@ -24,9 +24,10 @@ while read d ; do
       flash_block[$i]=${parse_info[4]}
       flash_interface[$i]=${parse_info[5]}
       flash_secondary[$i]=${parse_info[6]}
-      printf "%-7s %-30s %-29s %-20s %s\n" "card$i" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
+      printf "%-20s %-30s %-29s %-20s %s\n" "card$i:OPENCAPI-${allcards_array[$i]:0:4}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
     fi
   done < "$package_root/oc-devices"
   i=$[$i+1]
  done < <( lspci -d "1014":"062b" -s .1 )
+
 
