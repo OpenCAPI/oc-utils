@@ -25,11 +25,13 @@ program=`basename "$0"`
 # Print usage message helper function
 function usage() {
   echo "Usage:  sudo ${program} [OPTIONS]"
-  echo "    [-C <card>] card to reset. You need to Specify bdf device number!"
-  echo "      Example: if you want to reset card" 
+  echo "    [-C <card>] card to reload."
+  echo "      Example: if you want to reload card"
   echo -e "        \033[33m IBM,oc-snap.0004:00:00.1.0 \033[0m"
   echo "      Command line should be:"
-  echo -e "        \033[33m sudo ./oc-reset.sh -C OPENCAPI-0004 \033[0m"
+  echo -e "        \033[33m sudo ./oc-reload.sh -C IBM,oc-snap.0004:00:00.1.0 \033[0m"
+  echo "      Or:"
+  echo -e "        \033[33m sudo ./oc-reload.sh -C 0004:00:00.0 \033[0m"
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
   echo
@@ -120,8 +122,6 @@ if [ -n "$card" ]; then
 else
         select_cards
         # Find all OC cards in the system
-	allcards=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' |sed s/IBM,MEMCPY3./OPENCAPI-/g  |sed s/IBM,AFP3./OPENCAPI-/g |sed s/IBM,oc-snap./OPENCAPI-/g | awk -F":" '{print $1}' | sort`
-        allcards_array=($allcards)
         n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
 	if (($c < 0 )) || (( "$c" >= "$n" )); then
             printf "${bold}ERROR:${normal} Wrong card number ${c}\n"

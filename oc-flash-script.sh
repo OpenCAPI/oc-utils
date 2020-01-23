@@ -155,7 +155,7 @@ while read d ; do
       flash_block[$i]=${parse_info[4]}
       flash_interface[$i]=${parse_info[5]}
       flash_secondary[$i]=${parse_info[6]}
-      printf "%-20s %-30s %-29s %-20s %s\n" "card$i:OPENCAPI-${allcards_array[$i]:0:4}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
+      printf "%-20s %-30s %-29s %-20s %s\n" "card$i:${allcards_array[$i]}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
     fi
   done < "$package_root/oc-devices"
   i=$[$i+1]
@@ -305,7 +305,7 @@ wait $PID
 RC=$?
 #if [ $RC -eq 0 ]; then
 #  # reset card only if Flashing was good, TBD
-#  printf "Test infomration ${allcards_array[$c]:0:4}"
-#   ./oc-reset.sh -C OPENCAPI-${allcards_array[$c]:0:4}
+#  printf "Test information ${allcards_array[$c]"
+#   ./oc-reset.sh -C ${allcards_array[$c]}
 #fi
 
