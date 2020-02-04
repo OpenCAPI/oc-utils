@@ -33,6 +33,22 @@ function reset_card() {
     echo 100000 > /sys/kernel/debug/powerpc/eeh_max_freezes
   fi
 
+  # if necessary, convert card name into slot name
+  slot=$1
+  if [[ ! -f /sys/bus/pci/slots/$slot/power ]]
+  then
+    if [[ -c /dev/ocxl/$slot ]]
+    then
+      slot=`printf "$slot\n" | awk -F"." '{ print $2 }' | sed s/$/.0/`
+    fi
+    slot=`lspci -m -v -s $slot | awk '/^PhySlot:/ { print $2; exit }'`
+    if [[ -z $slot ]]
+    then
+      printf "$1: No such card or slot. Exiting.\n"
+      exit 1
+    fi
+  fi
+
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
   sleep 5
@@ -42,9 +58,9 @@ function reset_card() {
   sleep 3
   c=$1
   printf "reset card is set to \"$c\". Reset!\n"
-  printf 0 > /sys/bus/pci/slots/$c/power
+  printf 0 > /sys/bus/pci/slots/$slot/power
   sleep 3
-  printf 1 > /sys/bus/pci/slots/$c/power
+  printf 1 > /sys/bus/pci/slots/$slot/power
   sleep 5
   while true; do
     if [[ `ls -d /sys/class/ocxl/IBM* 2> /dev/null | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w` == "$n" ]]; then
@@ -88,19 +104,36 @@ function reload_card() {
     echo 100000 > /sys/kernel/debug/powerpc/eeh_max_freezes
   fi
 
+  # if necessary, convert card name into slot name
+  slot=$1
+  if [[ ! -f /sys/bus/pci/slots/$slot/power ]]
+  then
+    if [[ -c /dev/ocxl/$slot ]]
+    then
+      slot=`printf "$slot\n" | awk -F"." '{ print $2 }' | sed s/$/.0/`
+    fi
+    slot=`lspci -m -v -s $slot | awk '/^PhySlot:/ { print $2; exit }'`
+    if [[ -z $slot ]]
+    then
+      printf "$1: No such card or slot. Exiting.\n"
+      exit 1
+    fi
+  fi
+
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
   sleep 5
   modprobe pnv-php
 # added by collin for image_reload
-  setpci -s ${1:9:4}:00:00.0 638.B=01
+# tuned for the new slot naming scheme
+  setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
   printf "Resetting card $1: Image Reloading ... \n"
   sleep 3
   c=$1
   printf "image reload is set to \"$c\".\nReset Card...\nReload Image...\n"
-  printf 0 > /sys/bus/pci/slots/$c/power
+  printf 0 > /sys/bus/pci/slots/$slot/power
   sleep 3
-  printf 1 > /sys/bus/pci/slots/$c/power
+  printf 1 > /sys/bus/pci/slots/$slot/power
   sleep 5
   while true; do
     if [[ `ls -d /sys/class/ocxl/IBM* 2> /dev/null | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w` == "$n" ]]; then
