@@ -34,6 +34,7 @@ function reset_card() {
   fi
 
   # if necessary, convert card name into slot name
+  modprobe pnv-php	# required to access physical slot
   slot=$1
   if [[ ! -f /sys/bus/pci/slots/$slot/power ]]
   then
@@ -52,8 +53,6 @@ function reset_card() {
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
   sleep 5
-  modprobe pnv-php
-
   printf "Resetting card $1: "
   sleep 3
   c=$1
@@ -105,6 +104,7 @@ function reload_card() {
   fi
 
   # if necessary, convert card name into slot name
+  modprobe pnv-php	# required to access physical slot
   slot=$1
   if [[ ! -f /sys/bus/pci/slots/$slot/power ]]
   then
@@ -123,7 +123,6 @@ function reload_card() {
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
   sleep 5
-  modprobe pnv-php
 # added by collin for image_reload
 # tuned for the new slot naming scheme
   setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
