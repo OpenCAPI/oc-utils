@@ -25,13 +25,6 @@ function reset_card() {
   reset_count=0
   # get number of cards in system
   n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
-  # eeh_max_freezes: default number of resets allowed per PCI device per
-  # hour. Backup/restore this counter, since if card is rest too often,
-  # it would be fenced away.
-  if [ -f /sys/kernel/debug/powerpc/eeh_max_freezes ]; then
-    eeh_max_freezes=`cat /sys/kernel/debug/powerpc/eeh_max_freezes`
-    echo 100000 > /sys/kernel/debug/powerpc/eeh_max_freezes
-  fi
 
   # if necessary, convert card name into slot name
   modprobe pnv-php	# required to access physical slot
@@ -76,9 +69,6 @@ function reset_card() {
   done
   printf "\n"
 
-  if [ -f /sys/kernel/debug/powerpc/eeh_max_freezes ]; then
-    echo $eeh_max_freezes > /sys/kernel/debug/powerpc/eeh_max_freezes
-  fi
   if [ $ret_status -ne 0 ]; then
     exit 1
   else
@@ -95,13 +85,6 @@ function reload_card() {
   reset_count=0
   # get number of cards in system
   n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
-  # eeh_max_freezes: default number of resets allowed per PCI device per
-  # hour. Backup/restore this counter, since if card is rest too often,
-  # it would be fenced away.
-  if [ -f /sys/kernel/debug/powerpc/eeh_max_freezes ]; then
-    eeh_max_freezes=`cat /sys/kernel/debug/powerpc/eeh_max_freezes`
-    echo 100000 > /sys/kernel/debug/powerpc/eeh_max_freezes
-  fi
 
   # if necessary, convert card name into slot name
   modprobe pnv-php	# required to access physical slot
@@ -149,9 +132,6 @@ function reload_card() {
   done
   printf "\n"
 
-  if [ -f /sys/kernel/debug/powerpc/eeh_max_freezes ]; then
-    echo $eeh_max_freezes > /sys/kernel/debug/powerpc/eeh_max_freezes
-  fi
   if [ $ret_status -ne 0 ]; then
     exit 1
   else
