@@ -24,7 +24,7 @@ function reset_card() {
   reset_timeout=30
   reset_count=0
   # get number of cards in system
-  n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+  n=`ls /dev/ocxl 2>/dev/null | wc -l`
 
   # if necessary, convert card name into slot name
   modprobe pnv-php	# required to access physical slot
@@ -45,17 +45,11 @@ function reset_card() {
 
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
-  sleep 5
-  printf "Resetting card $1: "
-  sleep 3
-  c=$1
-  printf "reset card is set to \"$c\". Reset!\n"
+  printf "Resetting card $1: Reset! \n"
   printf 0 > /sys/bus/pci/slots/$slot/power
-  sleep 3
   printf 1 > /sys/bus/pci/slots/$slot/power
-  sleep 5
   while true; do
-    if [[ `ls -d /sys/class/ocxl/IBM* 2> /dev/null | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w` == "$n" ]]; then
+    if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break
     fi 
     printf "."
@@ -84,7 +78,7 @@ function reload_card() {
   reset_timeout=30
   reset_count=0
   # get number of cards in system
-  n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+  n=`ls /dev/ocxl 2>/dev/null | wc -l`
 
   # if necessary, convert card name into slot name
   modprobe pnv-php	# required to access physical slot
@@ -105,20 +99,14 @@ function reload_card() {
 
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
-  sleep 5
 # added by collin for image_reload
 # tuned for the new slot naming scheme
   setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
   printf "Resetting card $1: Image Reloading ... \n"
-  sleep 3
-  c=$1
-  printf "image reload is set to \"$c\".\nReset Card...\nReload Image...\n"
   printf 0 > /sys/bus/pci/slots/$slot/power
-  sleep 3
   printf 1 > /sys/bus/pci/slots/$slot/power
-  sleep 5
   while true; do
-    if [[ `ls -d /sys/class/ocxl/IBM* 2> /dev/null | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w` == "$n" ]]; then
+    if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break
     fi 
     printf "."

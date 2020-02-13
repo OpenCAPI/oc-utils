@@ -46,18 +46,18 @@ function select_cards() {
     printf "\n${bold}Current date:${normal}$(date)\n"
     
     # get number of cards in system
-    n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+    n=`ls /dev/ocxl 2>/dev/null | wc -l`
     printf "$n cards found.\n"
 
     # Find all OC cards in the system
-    allcards=`ls -d -1 /sys/class/ocxl/IBM* |grep "/sys/class/ocxl/IBM," | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
+    allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
     allcards_array=($allcards)
 
     # print card information
     i=0;
     while read d ; do
-	card_info=`ls -d -1 /sys/class/ocxl/IBM*${allcards_array[$i]:0:4}*`
-	printf "Card$i: ${card_info:16} \n"
+	card_info=`ls /dev/ocxl/*${allcards_array[$i]:0:4}*`
+	printf "Card$i: ${card_info##*/} \n"
 	i=$[$i+1]
     done < <( lspci -d "1014":"062b" -s .1 )
     printf "\n"
@@ -111,7 +111,7 @@ shift $((OPTIND-1))
 ulimit -c unlimited
 
 # check if CAPI boards exists
-capi_check=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+capi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $capi_check -eq 0 ]; then
   printf "${bold}ERROR:${normal} No CAPI devices found\n"
   exit 1
@@ -122,7 +122,7 @@ if [ -n "$card" ]; then
 else
         select_cards
         # Find all OC cards in the system
-        n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+        n=`ls /dev/ocxl 2>/dev/null | wc -l`
 	if (($c < 0 )) || (( "$c" >= "$n" )); then
             printf "${bold}ERROR:${normal} Wrong card number ${c}\n"
             exit 1
