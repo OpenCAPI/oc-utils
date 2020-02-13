@@ -105,7 +105,7 @@ if [[ ! -e $1 ]]; then
 fi
 
 # check if CAPI boards exists
-capi_check=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+capi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $capi_check -eq 0 ]; then
   printf "${bold}ERROR:${normal} No CAPI devices found\n"
   exit 1
@@ -122,7 +122,7 @@ fi
 trap 'rm -rf "/var/ocxl/capi-flash-script.lock"' 0
 
 # get number of cards in system
-n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+n=`ls /dev/ocxl 2>/dev/null | wc -l`
 printf "$n cards found."
 # touch history files if not present
 for i in `seq 0 $(($n - 1))`; do
@@ -138,7 +138,7 @@ printf "\n${bold}Current date:${normal}\n$(date)\n\n"
 # print table header
 printf "${bold}%-20s %-30s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
 # Find all OC cards in the system
-allcards=`ls -d -1 /sys/class/ocxl/IBM* |grep "/sys/class/ocxl/IBM," | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
+allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
 allcards_array=($allcards)
 
 # print card information and flash history

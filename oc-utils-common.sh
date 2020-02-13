@@ -24,7 +24,7 @@ function reset_card() {
   reset_timeout=30
   reset_count=0
   # get number of cards in system
-  n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+  n=`ls /dev/ocxl 2>/dev/null | wc -l`
 
   # if necessary, convert card name into slot name
   modprobe pnv-php	# required to access physical slot
@@ -55,7 +55,7 @@ function reset_card() {
   printf 1 > /sys/bus/pci/slots/$slot/power
   sleep 5
   while true; do
-    if [[ `ls -d /sys/class/ocxl/IBM* 2> /dev/null | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w` == "$n" ]]; then
+    if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break
     fi 
     printf "."
@@ -84,7 +84,7 @@ function reload_card() {
   reset_timeout=30
   reset_count=0
   # get number of cards in system
-  n=`ls -d /sys/class/ocxl/IBM* | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w`
+  n=`ls /dev/ocxl 2>/dev/null | wc -l`
 
   # if necessary, convert card name into slot name
   modprobe pnv-php	# required to access physical slot
@@ -118,7 +118,7 @@ function reload_card() {
   printf 1 > /sys/bus/pci/slots/$slot/power
   sleep 5
   while true; do
-    if [[ `ls -d /sys/class/ocxl/IBM* 2> /dev/null | awk -F"/sys/class/ocxl/" '{ print $2 }' | wc -w` == "$n" ]]; then
+    if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break
     fi 
     printf "."
