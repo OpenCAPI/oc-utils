@@ -35,11 +35,15 @@ reset_factory=0
 
 # Print usage message helper function
 function usage() {
+  echo ""
+  echo "Example: sudo ${program}  xxx_primary.bin xxx_secondary.bin"
+  echo ""
+
   echo "Usage:  sudo ${program} [OPTIONS]"
   echo "    [-C <card>] card to flash."
   echo "    [-f] force execution without asking."
   echo "         warning: use with care e.g. for automation."
-  echo "    [-r] Reset adapter to factory before writing to flash."
+ # echo "    [-r] Reset adapter to factory before writing to flash."
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
   echo "    <path-to-bin-file>"
@@ -116,6 +120,7 @@ mkdir -p /var/ocxl/
 
 # mutual exclusion
 if ! mkdir /var/ocxl/capi-flash-script.lock 2>/dev/null; then
+  printf "The folder \"/var/ocxl/capi-flash-script.lock\" exists.\n"
   printf "${bold}ERROR:${normal} Another instance of this script is running\n"
   exit 1
 fi
@@ -156,6 +161,7 @@ while read d ; do
       flash_interface[$i]=${parse_info[5]}
       flash_secondary[$i]=${parse_info[6]}
       printf "%-20s %-30s %-29s %-20s %s\n" "card$i:${allcards_array[$i]}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
+      echo ""
     fi
   done < "$package_root/oc-devices"
   i=$[$i+1]
@@ -290,7 +296,7 @@ trap 'kill -TERM $PID; perst_factory $c' TERM INT
 bdf=`echo ${allcards_array[$c]}`
 echo $bdf
 if [ $flash_type == "SPIx8" ]; then
-  # SPIx8 needs two file inputs (primary/secondary)
+# SPIx8 needs two file inputs (primary/secondary)
 #  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
 # until multiboot is enabled, force writing to 0x0
    $package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0 
@@ -303,9 +309,9 @@ wait $PID
 trap - TERM INT
 wait $PID
 RC=$?
-#if [ $RC -eq 0 ]; then
-#  # reset card only if Flashing was good, TBD
-#  printf "Test information ${allcards_array[$c]"
-#   ./oc-reset.sh -C ${allcards_array[$c]}
-#fi
+if [ $RC -eq 0 ]; then
+#  reload card only if Flashing was good, TBD
+  printf "Auto reload the image from flash:\n"
+  ./oc-reload.sh -C ${allcards_array[$c]}
+fi
 
