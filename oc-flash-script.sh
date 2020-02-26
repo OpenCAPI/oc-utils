@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2016, 2017 International Business Machines
+# Copyright 2016, 2020 International Business Machines
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Usage: sudo capi-flash-script.sh <path-to-bin-file>
+# Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
 package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
+
+printf "===============================\n"
+printf "== OpenCAPI programming tool ==\n"
+printf "===============================\n"
+printf " Tool compiled on: "
+ls -l $package_root/oc-flash|cut -d ' ' -f '6-8'
+printf "\n\n"
 
 force=0
 program=`basename "$0"`
@@ -126,9 +133,10 @@ if ! mkdir /var/ocxl/capi-flash-script.lock 2>/dev/null; then
 fi
 trap 'rm -rf "/var/ocxl/capi-flash-script.lock"' 0
 
+printf "\n"
 # get number of cards in system
 n=`ls /dev/ocxl 2>/dev/null | wc -l`
-printf "$n cards found."
+printf "In this server: $n OpenCAPI card(s) found."
 # touch history files if not present
 for i in `seq 0 $(($n - 1))`; do
   f="/var/ocxl/card$i"
@@ -138,9 +146,10 @@ for i in `seq 0 $(($n - 1))`; do
 done
 
 # print current date on server for comparison
-printf "\n${bold}Current date:${normal}\n$(date)\n\n"
+printf "\n${bold}Current date is ${normal}$(date)\n\n"
 
 # print table header
+printf "Logs shows that last programming was:\n"
 printf "${bold}%-20s %-30s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
@@ -253,11 +262,11 @@ fi
 if (($force != 1)); then
   # prompt to confirm
   while true; do
-    printf "Will flash ${bold}card$c${normal} with ${bold}$1${normal}" 
+    printf "Will flash ${bold}card$c${normal} with:\n     ${bold}$1${normal}\n" 
     if [ $flash_type == "SPIx8" ]; then
-        printf "and ${bold}$2${normal}" 
+        printf " and ${bold}$2${normal}\n" 
     fi
-    read -p ". Do you want to continue? [y/n] " yn
+    read -p "Do you want to continue? [y/n] " yn
     case $yn in
       [Yy]* ) break;;
       [Nn]* ) exit;;
@@ -294,7 +303,7 @@ fi
 trap 'kill -TERM $PID; perst_factory $c' TERM INT
 # flash card with corresponding binary
 bdf=`echo ${allcards_array[$c]}`
-echo $bdf
+#echo $bdf
 if [ $flash_type == "SPIx8" ]; then
 # SPIx8 needs two file inputs (primary/secondary)
 #  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
@@ -312,6 +321,6 @@ RC=$?
 if [ $RC -eq 0 ]; then
 #  reload card only if Flashing was good, TBD
   printf "Auto reload the image from flash:\n"
-  ./oc-reload.sh -C ${allcards_array[$c]}
+  #./oc-reload.sh -C ${allcards_array[$c]}
+  source $package_root/oc-reload.sh -C ${allcards_array[$c]}
 fi
-
