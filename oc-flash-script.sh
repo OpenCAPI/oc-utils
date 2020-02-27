@@ -16,15 +16,21 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
+tool_version=2.0
+# Changes History
+# V2.0 code cleaning
+
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
 package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
 
+printf "\n"
 printf "===============================\n"
 printf "== OpenCAPI programming tool ==\n"
 printf "===============================\n"
-printf " Tool compiled on: "
+echo oc-flash_script version is $tool_version
+printf "Tool compiled on: "
 ls -l $package_root/oc-flash|cut -d ' ' -f '6-8'
 printf "\n\n"
 
@@ -126,12 +132,12 @@ fi
 mkdir -p /var/ocxl/
 
 # mutual exclusion
-if ! mkdir /var/ocxl/capi-flash-script.lock 2>/dev/null; then
-  printf "The folder \"/var/ocxl/capi-flash-script.lock\" exists.\n"
+if ! mkdir /var/ocxl/oc-flash-script.lock 2>/dev/null; then
+  printf "The folder \"/var/ocxl/oc-flash-script.lock\" exists.\n"
   printf "${bold}ERROR:${normal} Another instance of this script is running\n"
   exit 1
 fi
-trap 'rm -rf "/var/ocxl/capi-flash-script.lock"' 0
+trap 'rm -rf "/var/ocxl/oc-flash-script.lock"' 0
 
 printf "\n"
 # get number of cards in system
