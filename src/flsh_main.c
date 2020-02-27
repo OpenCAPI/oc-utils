@@ -39,7 +39,7 @@
 
 
 extern void my_test();   
-int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr);
+int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag);
 
 int main(int argc, char *argv[])
 {
@@ -95,24 +95,28 @@ int main(int argc, char *argv[])
           break;
 
         case 'a':
-          printf("Primary Bitstream: %s\n", optarg);
+          if(verbose_flag)
+            printf(" Primary Bitstream: %s\n", optarg);
           strcpy(binfile,optarg);
           break;
 
         case 'b':
-          printf("Secondary Bitstream: %s\n", optarg);
+          if(verbose_flag)
+            printf(" Secondary Bitstream: %s\n", optarg);
           strcpy(binfile2,optarg);
           break;
 
         case 'c':
           strcpy(cfgbdf,optarg);
-	  printf("Target Device: %s\n", cfgbdf);
+          if(verbose_flag)
+	    printf(" Target Device: %s\n", cfgbdf);
           break;
 
 	case 'd':
 	  memcpy(temp_addr,&optarg[2],8);
 	  start_addr = (int)strtol(temp_addr,NULL,16);
-	  printf("Start Address (same address for SPIx8 on both parts): %d\n", start_addr);
+          if(verbose_flag)
+	    printf(" Start Address (same address for SPIx8 on both parts): %d\n", start_addr);
         case '?':
           /* getopt_long already printed an error message. */
           break;
@@ -121,18 +125,20 @@ int main(int argc, char *argv[])
           abort ();
         }
   }
-  if(verbose_flag) {
+  if(verbose_flag)
     printf("Verbose in use\n");
-  } else {
-   printf("Verbose not in use\n");
-  }
+  
   if(dualspi_mode_flag) {
-    printf("Using spi x8 mode\n");
+    if(verbose_flag)
+      printf("Using spi x8 mode\n");
+
     if(binfile[0] == '\0') {
       printf("ERROR: Must supply primary bitstream\n");
       exit(-1);
+    } else {
+      if(verbose_flag)
+        printf("Primary bitstream: %s !\n", binfile);
     }
-    else {printf("Primary bitstream: %s !\n", binfile);}
     if(binfile2[0] == '\0') {
       printf("ERROR: Must supply secondary bitstream\n");
       exit(-1);
@@ -153,7 +159,8 @@ int main(int argc, char *argv[])
     } 
   }
 
-  printf("Hello world - TRC_CONFIG = %d, TRC_AXI = %d, TRC_FLASH = %d, TRC_FLASH_CMD = %d\n", TRC_CONFIG, TRC_AXI, TRC_FLASH, TRC_FLASH_CMD);
+  if(verbose_flag)
+    printf("Hello world - TRC_CONFIG = %d, TRC_AXI = %d, TRC_FLASH = %d, TRC_FLASH_CMD = %d\n", TRC_CONFIG, TRC_AXI, TRC_FLASH, TRC_FLASH_CMD);
 
   u32 temp;
   int vendor,device, subsys;
@@ -175,13 +182,10 @@ int main(int argc, char *argv[])
   temp = config_read(CFG_DEVID,"Read device id of card");
   vendor = temp & 0xFFFF;
   device = (temp >> 16) & 0xFFFF;
-  printf("DEVICE: %x VENDOR: %x\n",device,vendor);
   if ( (vendor != 0x1014) || ( device != 0x062B)) {
+    printf("DEVICE: %x VENDOR: %x\n",device,vendor);
     printf("This card shouldn't be flashed with this script\n");
     exit(-1);
-  }
-  else {
-    printf("This card has the flash controller!\n");
   }
 /*
   if ((CFG = open(cfg_file, O_RDWR)) < 0) {
@@ -209,33 +213,40 @@ int main(int argc, char *argv[])
   TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
-  printf("Beginning qspi master core setup\n");
+  printf("-------------------------------\n");
+  printf("QSPI master core setup: started\r");
   QSPI_setup();          // Reset and set up Quad SPI core
-  read_QSPI_regs();
+  if(verbose_flag) 
+    read_QSPI_regs();
 
   TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
 //ICAP_setup();          // TODO: Create this after can load and read back FLASH image
-  read_ICAP_regs();
+  if(verbose_flag) 
+    read_ICAP_regs();
 
-  printf("Finished initial qspi master setup\n");
+  printf("QSPI master core setup: completed\n");
 
-  printf("Programming Primary SPI with primary bitstream %s\n",binfile);
-  update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
+  printf("-------------------------------\n");
+  printf("Programming Primary SPI with primary bitstream:\n    %s\n",binfile);
+  update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr, verbose_flag);
+
   if(dualspi_mode_flag) {
-  printf("Programming Secondary SPI with secondary bitstream %s\n",binfile2);
-  update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr);
+    printf("-------------------------------\n");
+    printf("Programming Secondary SPI with secondary bitstream:\n    %s\n",binfile2);
+    update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
   }
 
   printf("Finished Progamming Sequence\n");
+  printf("-------------------------------\n");
   
   Check_Accumulated_Errors();
 
   return 0;  // Incisive simulator doesn't like anything other than 0 as return value from main() 
 }
 
-int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr)
+int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag)
 {
   int priv1,priv2;
   int dat, dif;
@@ -277,11 +288,13 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
   } else {
     fsize = tempstat.st_size;
   }
-  printf("Flashing file of size %ld bytes\n",fsize);
+  printf("\nFlashing file of size %ld bytes\n",fsize);
   num_64KB_sectors = fsize/65536 + 1;
   num_256B_pages = fsize/256 + 1;
-  printf("Performing %d 64KiB sector erases\n",num_64KB_sectors);
-  printf("Performing %d 256B Programs/Reads\n",num_256B_pages);
+  if(verbose_flag) {
+    printf("Performing %d 64KiB sector erases\n",num_64KB_sectors);
+    printf("Performing %d 256B Programs/Reads\n",num_256B_pages);
+  }
 
  // Set stdout to autoflush
  setvbuf(stdout, NULL, _IONBF, 0);
@@ -291,26 +304,30 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 
  //Initial Flash memory setup
  flash_setup(devsel);
- read_flash_regs(devsel);
+ if(verbose_flag)
+   read_flash_regs(devsel);
 
- printf("Entering Erase Segment\n");
+ //printf("Entering Erase Segment\n");
  st = lt = set = time(NULL);
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_64KB_sectors;i++) {
-   printf("Erasing Sector: %d        \r",i);
+   //printf("Erasing Sector: %d      \r",i);
+   printf("Erasing Sectors    : %d %% of %d sectors   \r",(int)(i*100/num_64KB_sectors), num_64KB_sectors);
    fw_Write_Enable(devsel);
    fw_64KB_Sector_Erase(devsel, eaddress_secondary);
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
    eaddress_secondary = eaddress_secondary + 65536;
  }
+ printf("Erasing Sectors    : completed                           \n");
 
  eet = spt = time(NULL);
- printf("Entering Program Segment\n");
+ //printf("Entering Program Segment\n");
 
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
-   printf("Writing Page: %d        \r",i);
+   //printf("Writing Page: %d        \r",i);
+   printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);
    //printf("Reading piece of file\n");
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
@@ -326,15 +343,17 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
    //printf("program checkpoint 2\n");
    paddress_secondary = paddress_secondary + 256;
  }
+ printf("Writing image code : completed                           \n");
 
  ept = time(NULL);
- printf("Entering Read Segment\n");
+ //printf("Entering Read Segment\n");
  svt = time(NULL);
 
  int misc_pntcnt = 0;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
-   printf("Reading Page: %d        \r",i);
+   //printf("Reading Page: %d        \r",i);
+   printf("Checking image code: %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);
    fr_Read(devsel, raddress_secondary, 256, rdata);
    raddress_secondary = raddress_secondary + 256;
    dif = read(BIN,&edat,256);
@@ -347,9 +366,10 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
        }
    }
  }
+ printf("Checking image code: completed                           \n");
  
  evt = time(NULL);
- printf("\n\n");
+ printf("\n");
 
   //# -------------------------------------------------------------------------------
   //# Calculate and Print Elapsed Times
@@ -514,7 +534,3 @@ void my_test(void)
 
   return;
 }
-
-
-
-

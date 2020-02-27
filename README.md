@@ -45,7 +45,7 @@ Online updating had been verified on following FPGA cards with OC-Accel bitstrea
 * AD9V3
 * AD9H3
 
-on System FP5290G2, IC922, S924 with specific firmware (skiboot) and OS kernels. 
+on System FP5290G2, IC922, S924 and AC922 with specific firmware (skiboot) and OS kernels. 
 
 Contact your technical support team for more information.
 
