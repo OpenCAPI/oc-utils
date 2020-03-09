@@ -81,6 +81,9 @@ function select_cards() {
 
 }
 
+# OPTIND Reset done in order to use getopts even if not the first time getopts is called (when sourcing this script by oc-flash-script.sh for example)
+OPTIND=1
+
 # Parse any options given on the command line
 while getopts ":C:Vh" opt; do
   case ${opt} in
