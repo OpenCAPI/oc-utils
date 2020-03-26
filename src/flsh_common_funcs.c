@@ -358,12 +358,13 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
   u32 resp;
   int saved_TRC_CONFIG;
   char s_err[1024];
-  char s_devstat[1024];
-  
-  sprintf(call_args,"devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
-    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
+  char s_devstat[1044];
 
-  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args); 
+  snprintf(call_args, sizeof(call_args),
+	   "devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
+	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args);
 
   // Step 1: config_write to FLASH_DATA, then FLASH_ADDR initiating AXI write
   config_write(CFG_FLASH_DATA, axi_wdata, 4, "axi_write - step 1a: store write data into FLASH_DATA register");
@@ -390,10 +391,10 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
     }
     printf("(axi_write): %s:  *** ERROR - detected bad response on axi_write of %s (h%8x) ***\n", call_args, s_err, resp);
   }
-    
+
   // Check device status signals
-  sprintf(s_devstat,"(axi_write): %s ", call_args);
-  check_axi_status(read_FA, U32_ZERO, s_devstat); 
+  snprintf(s_devstat, sizeof(s_devstat), "(axi_write): %s ", call_args);
+  check_axi_status(read_FA, U32_ZERO, s_devstat);
 
   return;
 }
@@ -415,12 +416,13 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
   u32 rdata;
   int saved_TRC_CONFIG;
   char s_err[1024];
-  char s_devstat[1024];
- 
-  sprintf(call_args,"devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
-    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
+  char s_devstat[1044];
 
-  if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args); 
+  snprintf(call_args, sizeof(call_args),
+	   "devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
+	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args);
 
   // Step 1: config_write to FLASH_ADDR initiating AXI read
   config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_RD, exp_enab, exp_dir), 4, "axi_read  - step 1: write to FLASH_ADDR to initiate AXI read");
@@ -446,10 +448,10 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
     }
     printf("(axi_read): %s:  *** ERROR - detected bad response on axi_read of %s (h%8x) ***\n", call_args, s_err, resp);
   }
-    
+
   // Check device status signals
-  sprintf(s_devstat,"(axi_read): %s ", call_args);
-  check_axi_status(read_FA, U32_ZERO, s_devstat); 
+  snprintf(s_devstat, sizeof(s_devstat), "(axi_read): %s ", call_args);
+  check_axi_status(read_FA, U32_ZERO, s_devstat);
 
   // Step 4: Read returned data
   rdata = config_read(CFG_FLASH_DATA, "axi_read  - step 3: retrieve data from FLASH_DATA register");
@@ -838,25 +840,36 @@ void flash_op(                      // The SPI interface shifts data in while si
 
   int  fifo_bytes;                        // How many bytes have been written into the DTR FIFO
 
-  char call_args[1024];                   // Buffers for easier printing
-  char ds[4096];
- 
+  char ds[4096], ds_elt[10];              // buffer for debug traces
+
   byte drr_data[FIFO_DEPTH];              // Temporary storage for data captured by DRR FIFO after shift to FLASH
   int  drr_ptr;                           // Pointer into 'drr_data'
   int  skip_bytes;                        // Number of bytes to skip over which contain shift out from cmd, addr, dummy cycles
 
-  // Save arguments as a string for easier printing later
-  sprintf(call_args,"devsel %s, cmd h%2X, addr h%8X, num_addr %2d, num_dummy %2d, num_bytes %d, dir %s <%s>",
-    flash_devsel_as_str(devsel), cmd, addr, num_addr, num_dummy, num_bytes, fo_dir_as_str(dir), s); 
+  if (TRC_FLASH == TRC_ON) {
+    // Save arguments as a string for easier printing later
+    snprintf(ds, sizeof(ds),
+	     "devsel %s, cmd h%2X, addr h%8X, num_addr %2d, num_dummy %2d, num_bytes %d, dir %s <%s>",
+	     flash_devsel_as_str(devsel), cmd, addr, num_addr, num_dummy,
+	     num_bytes, fo_dir_as_str(dir), s);
+    printf("trace  flash_op        %s\n", ds);
+  }
 
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op        %s\n", call_args); 
-  // Create printable string of write data (up to first 16 bytes)
-  strcpy(ds, ""); 
-  if (num_bytes <= 16) j = num_bytes;    
-  else                 j = 16;
-  for (i = 0; i < j; i++)  sprintf(ds, "%s %2.2X ", ds, wdata[i]);
-  if (num_bytes > 16)      sprintf(ds, "%s ..." , ds);
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op          (hex) wdata[] = %s\n", ds); 
+  if (TRC_FLASH == TRC_ON) {
+    // Create printable string of write data (up to first 16 bytes)
+    if (num_bytes <= 16)
+      j = num_bytes;
+    else
+      j = 16;
+    ds[0] = '\0';
+    for (i = 0; i < j; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), "%2.2X ", wdata[i]);
+      strcat(ds, ds_elt);
+    }
+    if (num_bytes > 16)
+      strcat(ds, "...");
+    printf("trace  flash_op          (hex) wdata[] = %s\n", ds);
+  }
 
   // Check validity of arguements
   if (num_addr > 4) {
@@ -952,10 +965,13 @@ void flash_op(                      // The SPI interface shifts data in while si
     remaining_fifo_bytes  = FIFO_DEPTH - header_bytes;             // Number of bytes to send yet (to fill the FIFO on this iteration)
   }
   if (debug >= 1) {   // print header_array
-    strcpy(ds, ""); 
-    for (i = 0; i < header_ptr; i++) { sprintf(ds, "%s %2.2X ", ds, header_array[i]); }   
-    printf("flash_op (debug): header_ptr = %d, wdata_ptr = %d, header_bytes = %d, remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", 
-      header_ptr, wdata_ptr, header_bytes, remaining_total_bytes, remaining_fifo_bytes);
+    ds[0] = '\0';
+    for (i = 0; i < header_ptr; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), "%2.2X ", header_array[i]);
+      strcat(ds, ds_elt);
+    }
+    printf("flash_op (debug): header_ptr = %d, wdata_ptr = %d, header_bytes = %d, remaining_total_bytes = %d, remaining_fifo_bytes = %d\n",
+	   header_ptr, wdata_ptr, header_bytes, remaining_total_bytes, remaining_fifo_bytes);
     printf("flash_op (debug): header_array[0:%d] = %s\n", header_bytes-1, ds);
   }
 
@@ -1084,322 +1100,23 @@ void flash_op(                      // The SPI interface shifts data in while si
   axi_wdata = SPISSR_SEL_NONE;  
   axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (disable all chip selects)"); 
 
-  // Create printable string of read data
-  sprintf(ds, "rdata (hex) ");
-  for (i = 0; i < num_bytes; i++)  sprintf(ds, "%s %2X ",ds, *(rdata+i) );
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op        %s\n\n", ds); 
+  if (TRC_FLASH == TRC_ON) {
+    // Create printable string of read data
+    if (num_bytes <= 16)
+      j = num_bytes;
+    else
+      j = 16;
+    strcpy(ds, "rdata (hex)");
+    for (i = 0; i < j; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+      strcat(ds, ds_elt);
+    }
+    printf("trace  flash_op        %s\n\n", ds);
+  }
 
   FLASH_OP_COUNT++;    // Bump FLASH operation count
 
   //printf("Flash op checkpoint 4\n");
-  return;
-}
-
-// --------------------------------------------------------------------------------------------------------
-// FLASH OPeration
-void flash_op_verbose(                      // The SPI interface shifts data in while simultaneously shifting data out, thus "read" is the same as a "write".
-               u32  devsel          // Select FLASH device to target (use SPISSR_SEL_DEV1 or SPISSR_SEL_DEV2) 
-             , byte cmd             // Command to sent to FLASH
-             , u32  addr            // 0-4 bytes of address to target in FLASH (1B addr in [7:0], 2B in [15:0], 3B in [23:0], 4B in [31:0])
-             , int  num_addr        // Number of address bytes (usually 0 or 3 depending on cmd, 3 max)
-             , int  num_dummy       // Number of dummy cycles (0 to 10 for Micron FLASH parts)
-             , int  num_bytes       // Number of data bytes, 0-N
-             , byte *wdata          // Reference to array of bytes to write to FLASH  (note: wdata and rdata arrays should be the same size)
-             , byte *rdata          // Reference to array of bytes to place data read from FLASH
-             , int  dir             // Skip some steps based on the direction of the FLASH operation (FO_DIR_XCHG, FO_DIR_RD, FO_DIR_WR)
-             , char *s              // Comment to be printed in trace string
-             )
-{
-  int  debug = 0;                // Internal debug. 0=no debug msgs, 1=some debug msgs, 2=all debug msgs
-
-  u32  axi_wdata, axi_rdata;              
-  int  i, j;
-
-  byte header_array[16];                  // 1 cmd + 3 addr + 10 dummy (max) + pad with first few data bytes
-                                          //   Why 16? It is the minimum DTR FIFO size in the Quad SPI core. Also it is a multiple of 4 which 
-                                          //   allows config_write operations to use the Byte Expander to send 4 bytes at a time to the DTR FIFO.
-  int  header_bytes;                      // Number of bytes in header_array to send
-  int  header_ptr;                        // Index into header_array
-  int  remaining_header_bytes;            // Number of free bytes remaining in header array
-
-  int  wdata_ptr, rdata_ptr;              // Index into wdata/rdata arrays where next byte should be written
-  int  remaining_total_bytes;             // Total number of bytes remaining to be sent to FLASH
-  int  remaining_fifo_bytes;              // Number of bytes remaining to be sent in this iteration of loading/sending the DTR FIFO
-
-  int  fifo_bytes;                        // How many bytes have been written into the DTR FIFO
-
-  char call_args[1024];                   // Buffers for easier printing
-  char ds[4096];
- 
-  byte drr_data[FIFO_DEPTH];              // Temporary storage for data captured by DRR FIFO after shift to FLASH
-  int  drr_ptr;                           // Pointer into 'drr_data'
-  int  skip_bytes;                        // Number of bytes to skip over which contain shift out from cmd, addr, dummy cycles
-
-  // Save arguments as a string for easier printing later
-  sprintf(call_args,"devsel %s, cmd h%2X, addr h%8X, num_addr %2d, num_dummy %2d, num_bytes %d, dir %s <%s>",
-    flash_devsel_as_str(devsel), cmd, addr, num_addr, num_dummy, num_bytes, fo_dir_as_str(dir), s); 
-
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op        %s\n", call_args); 
-  // Create printable string of write data (up to first 16 bytes)
-  strcpy(ds, ""); 
-  if (num_bytes <= 16) j = num_bytes;    
-  else                 j = 16;
-  for (i = 0; i < j; i++)  sprintf(ds, "%s %2.2X ", ds, wdata[i]);
-  if (num_bytes > 16)      sprintf(ds, "%s ..." , ds);
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op          (hex) wdata[] = %s\n", ds); 
-
-  // Check validity of arguements
-  if (num_addr > 4) {
-    ERRORS_DETECTED++;
-    printf("(flash_op):  *** ERROR - num_addr (%d) is not in the range 0,1,2,3,4 ***\n", num_addr);
-    return;   // ABORT
-  }
-  if (num_dummy > 10) {  // For Micron FLASH, largest number of dummy cycles is 10
-    ERRORS_DETECTED++;
-    printf("(flash_op):  *** ERROR - num_dummy (%d) is not in the range 0 through 10 inclusive ***\n", num_dummy);
-    return;   // ABORT
-  }
-  if (num_bytes < 0) {
-    ERRORS_DETECTED++;
-    printf("(flash_op):  *** ERROR - num_bytes (%d) is less than 0 ***\n", num_bytes);
-    return;   // ABORT
-  }
-
-  printf("Flash OP checkpoint 1: About to do FPGA axi ops\n");
-  // Activate device select for targeted device
-  axi_wdata = devsel;
-  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (activate device select for targeted device)"); 
-
-  // SPICR (SPI Control Register) - default h180, [8]=disable master transactions, [6:5]=reset RX,TX FIFOs, [2]=master config, [1]=SPI enable
-  axi_wdata = 0x00000166;  // {22'b0,10'b01_0110_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Reset RX & TX FIFOs)"); 
-
-  // SPICR (SPI Control Register) - [6:5]=unreset RX,TX FIFOs
-  axi_wdata = 0x00000106;  // {22'b0,10'b01_0000_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Remove reset from RX & TX FIFOs)"); 
-
-  printf("Flash OP checkpoint 2: Got through first axi writes OK\n");
-
-  // If all works properly, IPISR[2] (DTR Empty) should be 0 after FIFO reset
-  if (FLASH_OP_CHECK == FO_CHK_ON) {
-    axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op: read  IPISR  (check bit [2] (DTR Empty) is 0 after FIFO reset)"); 
-    if ((axi_rdata & 0x00000004) != 0x00000000) {  // If [2] of [31:0] is not set
-      ERRORS_DETECTED++;
-      printf("(flash_op):  *** ERROR - IPISR[2] (DTR Empty) was set after FIFO reset (h%8x) ***\n", axi_rdata);
-      axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, (axi_rdata & 0x00000004), "flash_op: write IPISR  (clear bit [2] (DTR Empty) before continuing)"); 
-    }
-  }
-
-  printf("Flash OP checkpoint 3: Got through DTR empty check OK\n");
-
-  //printf("Flash op checkpoint 1\n");
-  // Assemble header array containing cmd, addr, dummy cycles, and data to pad it
-  header_array[0] = cmd;
-  switch (num_addr)
-    { case 0: header_ptr = 1;
-              break; 
-      case 1: header_array[1] = (byte)  (addr & 0x000000FF);               // Cast to byte to reduce from 32 bits to 8 bits
-              header_ptr = 2;
-              break;
-      case 2: header_array[1] = (byte) ((addr & 0x0000FF00) >>  8); 
-              header_array[2] = (byte)  (addr & 0x000000FF);
-              header_ptr = 3;
-              break;
-      case 3: header_array[1] = (byte) ((addr & 0x00FF0000) >> 16); 
-              header_array[2] = (byte) ((addr & 0x0000FF00) >>  8);
-              header_array[3] = (byte)  (addr & 0x000000FF);
-              header_ptr = 4;
-              break;
-      case 4: header_array[1] = (byte) ((addr & 0xFF000000) >> 24);
-              header_array[2] = (byte) ((addr & 0x00FF0000) >> 16); 
-              header_array[3] = (byte) ((addr & 0x0000FF00) >>  8);
-              header_array[4] = (byte)  (addr & 0x000000FF);
-              header_ptr = 5;
-              break;
-      default: ERRORS_DETECTED++;   // Shouldn't happen if argument check above is in place
-               printf("(flash_op):  *** ERROR - num_addr (%d) is not in the range 0,1,2,3,4 ***\n", num_addr);
-               return;   // ABORT
-    }
-  for (i = 0; i < num_dummy; i++) {   // Fill dummy cycles with pad bytes 
-    header_array[header_ptr] = 0x00;
-    header_ptr++;
-  }
-  wdata_ptr = 0;                                // Initialize data array pointers
-  remaining_header_bytes = 16 - header_ptr;     // Determine amount of space left in header
-  if (num_bytes <= remaining_header_bytes) {    // There is room in the header for all data bytes (i.e. cmd has 1 byte of data)
-    for (i=0; i < num_bytes; i++) {             // Copy all data into header array
-      header_array[header_ptr] = *(wdata + wdata_ptr);
-      header_ptr++;
-      wdata_ptr++;
-    }
-    header_bytes = header_ptr;
-    remaining_total_bytes = 0;                  // There are no more data bytes to send (overall)
-    remaining_fifo_bytes  = 0;                  // There are no more data bytes to send (to fill the FIFO on this iteration)
-  }
-  else {                                                           // There is more data to send than remains in the header. 
-    for (i=0; i < remaining_header_bytes; i++) {                   // Fill up the remaining space in the header array with data.
-      header_array[header_ptr] = *(wdata + wdata_ptr);
-      header_ptr++;
-      wdata_ptr++;
-    }
-    header_bytes = header_ptr;
-    remaining_total_bytes = num_bytes  - remaining_header_bytes;   // Number of bytes to send yet (overall)
-    remaining_fifo_bytes  = FIFO_DEPTH - header_bytes;             // Number of bytes to send yet (to fill the FIFO on this iteration)
-  }
-  if (debug >= 1) {   // print header_array
-    strcpy(ds, ""); 
-    for (i = 0; i < header_ptr; i++) { sprintf(ds, "%s %2.2X ", ds, header_array[i]); }   
-    printf("flash_op (debug): header_ptr = %d, wdata_ptr = %d, header_bytes = %d, remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", 
-      header_ptr, wdata_ptr, header_bytes, remaining_total_bytes, remaining_fifo_bytes);
-    printf("flash_op (debug): header_array[0:%d] = %s\n", header_bytes-1, ds);
-  }
-
-  printf("Flash OP checkpoint 4: Got through Bus calculations OK\n");
-
-  // With Slave Select off, write first set of bytes, containing header and as many additional data as DTR FIFO can hold
-  for (i=0; (i+3) < header_bytes; i=i+4) {  // Load groups of 4 bytes first from header array
-    axi_wdata = (header_array[i] << 24) | (header_array[i+1] << 16) | (header_array[i+2] << 8) | header_array[i+3];
-    sprintf(ds,"flash_op: write SPIDTR  (header_array[%d:%d])", i, i+3);
-    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);  
-  }
-  while (i < header_bytes) {                // Load individual bytes that may remain in header array
-    axi_wdata = 0x00000000 | header_array[i];
-    sprintf(ds,"flash_op: write SPIDTR  (header_array[%d])", i);
-    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);  
-    i++;
-  }
-  printf("Flash OP checkpoint 5: Loaded bytes into header array OK\n");
-  fifo_bytes = i;  // Note: max size of header_array = 16 which is smallest DTR FIFO allowed, so no risk of overrun when loading header  
-  if (debug >= 2) printf("flash_op (debug) - (at A) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
-  while (remaining_total_bytes > 0 && remaining_fifo_bytes > 0) {   // Fill FIFO with as much remaining data as possible
-    if (remaining_total_bytes >= 4 && remaining_fifo_bytes >= 4) {
-      axi_wdata = (*(wdata+wdata_ptr) << 24) | (*(wdata+wdata_ptr+1) << 16) | (*(wdata+wdata_ptr+2) << 8) | *(wdata+wdata_ptr+3);
-      sprintf(ds,"flash_op: write SPIDTR  (wdata[%d:%d])", wdata_ptr, wdata_ptr+3);
-      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);  
-      wdata_ptr             = wdata_ptr + 4;
-      remaining_total_bytes = remaining_total_bytes - 4;
-      remaining_fifo_bytes  = remaining_fifo_bytes  - 4;
-      fifo_bytes            = fifo_bytes + 4;
-    } 
-    else {   // less than 4 bytes to send or less than 4 bytes in DTR FIFO
-      axi_wdata = 0x00000000 | wdata[wdata_ptr];
-      sprintf(ds,"flash_op: write SPIDTR  (wdata[%d])", wdata_ptr);
-      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);  
-      wdata_ptr++;
-      remaining_total_bytes--;
-      remaining_fifo_bytes--;
-      fifo_bytes++;
-    } 
-    if (debug >= 2) printf("flash_op (debug) - (at B) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
-  }
-  printf("Flash OP checkpoint 6: Finished loading DTR Fifo OK\n");
-  //printf("Flash op checkpoint 2\n");
-  // Instruct QSPI to send DTR contents to FLASH
-  // SPICR (SPI Control Register) - enable Master to drive SPI (starts CCLK and transfer) by disabling Master Transaction Inhibit (bit [8])
-  axi_wdata = 0x00000006;  // {22'b0,10'b00_0000_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=0 to enable master to drive SPI)"); 
-
-  printf("Flash OP checkpoint 7: Waiting for DTR empty\n");
-  // Wait for DTR contents to be transferred. When complete, DRR FIFO contains shifted out bytes.
-  fo_wait_for_DTR_FIFO_empty();
-
-  printf("Flash OP checkpoint 8: Reading back from DRR Fifo\n");
-  // Read specified number of bytes from DRR FIFO
-  fo_read_DRR(drr_data, fifo_bytes, dir);               
-
-  // Transfer read bytes to return array, removing cmd, addr, and dummy bytes as needed
-  rdata_ptr  = 0;              // Initialize array pointer (once at first time reading DRR FIFO)
-  drr_ptr    = 0;              // Initialize array pointer (every time fo_read_DRR() is called)
-  skip_bytes = 1 + num_addr + (num_dummy/2);   // Ignore the first bytes returned if they are for (cmd, addr, dummy) cycles
-    // IMPORTANT: The assumption is dummy cycles only occur on bulk data movement which will use Quad mode on the SPI bus. This means
-    //            every dummy cycle captures 4 bits from the FLASH, so 2 cycles equal a byte. Furthermore it assumes num_dummy will 
-    //            be an even number, which from the Micron spec appears to be true in all cases. If dummy cycles are used with non-Quad SPI
-    //            commands, then another solution needs to be found; like determining the number of dummy bytes from a look up table
-    //            based on the 'cmd' value (which is how the Quad SPI IP core does it).
-  drr_ptr    = skip_bytes;     
-  for (i = skip_bytes; i < fifo_bytes; i++) {       // Starting with first real data byte, copy read byts into the return data array
-    *(rdata + rdata_ptr) = *(drr_data + drr_ptr);
-    if (debug >= 2) printf("flash_op (debug): DATA COPY (header) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n", 
-      rdata_ptr, *(rdata+rdata_ptr), drr_ptr, *(drr_data+drr_ptr) );
-    rdata_ptr++;
-    drr_ptr++;
-  }  
-
-  printf("Flash OP checkpoint 9: About to do drain DRR fifo\n");
-
-  while (remaining_total_bytes > 0) {
-    if (debug >= 2) printf("flash_op (debug) - (at C) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
-    remaining_fifo_bytes = FIFO_DEPTH;   // Clear counts relative to the FIFO
-    fifo_bytes = 0;
-    while (remaining_total_bytes > 0 && remaining_fifo_bytes > 0) {   // Fill FIFO with as much remaining data as possible
-      if (remaining_total_bytes >= 4 && remaining_fifo_bytes >= 4) {
-        axi_wdata = (*(wdata+wdata_ptr) << 24) | (*(wdata+wdata_ptr+1) << 16) | (*(wdata+wdata_ptr+2) << 8) | *(wdata+wdata_ptr+3);
-        sprintf(ds,"flash_op: write SPIDTR  (wdata[%d:%d])", wdata_ptr, wdata_ptr+3);
-        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);  
-        wdata_ptr             = wdata_ptr + 4;
-        remaining_total_bytes = remaining_total_bytes - 4;
-        remaining_fifo_bytes  = remaining_fifo_bytes  - 4;
-        fifo_bytes            = fifo_bytes + 4;
-      } 
-      else {   // less than 4 bytes to send or less than 4 bytes in DTR FIFO
-        axi_wdata = 0x00000000 | wdata[wdata_ptr];
-        sprintf(ds,"flash_op: write SPIDTR  (wdata[%d])", wdata_ptr);
-        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);  
-        wdata_ptr++;
-        remaining_total_bytes--;
-        remaining_fifo_bytes--;
-        fifo_bytes++;
-      } 
-    }
-    if (debug >= 2) printf("flash_op (debug) - (at D) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
-
-    // Instruct QSPI to send DTR contents to FLASH  (SKIP THIS STEP AFTER THE FIRST FIFO FILL)
-    // SPICR (SPI Control Register) - enable Master to drive SPI (starts CCLK and transfer) by disabling Master Transaction Inhibit (bit [8])
-
-    // Wait for DTR contents to be transferred. When complete, DRR FIFO contains shifted out bytes.
-    fo_wait_for_DTR_FIFO_empty();
-
-    // Read specified number of bytes from DRR FIFO
-    fo_read_DRR(drr_data, fifo_bytes, dir);               
-
-    // Transfer read bytes to return array, removing cmd, addr, and dummy bytes as needed
-    drr_ptr = 0;      // Initialize array pointer (every time fo_read_DRR() is called)
-    for (i = 0; i < fifo_bytes; i++) {       // Append read bytes into the return data array
-      *(rdata + rdata_ptr) = *(drr_data + drr_ptr);
-      if (debug >= 2) printf("flash_op (debug): DATA COPY (block data) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n", 
-        rdata_ptr, *(rdata+rdata_ptr), drr_ptr, *(drr_data+drr_ptr) );
-      rdata_ptr++;
-      drr_ptr++;
-    }  
-
-  } // while (remaining_total_bytes > 0) 
-  printf("Flash OP checkpoint 10: Finished DRR drain\n");
-  //printf("Flash op checkpoint 3\n");
-  // At this point, all data is transferred, return the QSPI core back to an inactive state, awaiting the next command
-
-  // SPICR (SPI Control Register) - disable master transactions
-  axi_wdata = 0x00000106;  // {22'b0,10'b01_0000_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=1 to disable master transactions)"); 
-
-  printf("Flash OP checkpoint 11: Finished write SPICR\n");
-
-  // When no more data to this device, disable chip select
-  axi_wdata = SPISSR_SEL_NONE;  
-  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (disable all chip selects)"); 
-
-  printf("Flash OP checkpoint 12: Finished write SPISSR\n");
-
-  // Create printable string of read data
-  sprintf(ds, "rdata (hex) ");
-  printf("Flash OP checkpoint 13: Finished sprintf\n");
-  for (i = 0; i < num_bytes; i++)  sprintf(ds, "%s %2X ",ds, *(rdata+i) );
-  printf("Flash OP checkpoint 14: Finished other sprints\n");
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op        %s\n\n", ds); 
-  printf("Flash OP checkpoint 15: Finished debug\n");
-  FLASH_OP_COUNT++;    // Bump FLASH operation count
-  printf("Flash OP checkpoint 16: Finished op increment\n");
-  //printf("Flash op checkpoint 4\n");
-  printf("Flash OP checkpoint 17: Finished!\n");
   return;
 }
 
@@ -1506,7 +1223,7 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
   byte rbyte;
   byte rary[20];
   u32  ru32;
-  char ds[1024];
+  char ds[1024], ds_elt[10];
   int i;
   int saved_TRC_FLASH_CMD;
   
@@ -1537,7 +1254,10 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
 
   fr_Device_ID_Register(devsel, rary);
   sprintf(ds, "h");
-  for (i = 0; i < 20; i++)  sprintf(ds, "%s %2.2X ",ds, rary[i] );
+  for (i = 0; i < 20; i++) {
+    snprintf(ds_elt, sizeof(ds_elt), " %2.2X", rary[i]);
+    strcat(ds, ds_elt);
+  }
   printf("            DEVICE ID = %s\n", ds);
 
   printf("----- (End read_flash_regs) -----\n\n");
@@ -1789,19 +1509,17 @@ void fr_Device_ID_Register(u32 devsel, byte *rdata)    // 20 bytes of read data 
 { byte wary[20];
   byte rary[20];
   int i;
-  char ds[100];
+
   for (i=0; i < 20; i++) {
     wary[i] = 0x00; 
   }
   if (check_TRC_FLASH_CMD()) printf("fr_Device_ID_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
   //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
   flash_op(devsel, 0x9E, 0x00000000, 0       , 0        , 20       , wary   , rary   , FO_DIR_RD, "READ DEVICE ID REGISTER");
-  sprintf(ds, "h");
   for (i=0; i < 20; i++) {
-    sprintf(ds, "%s %2.2X", ds, rary[i]); 
     *(rdata + i) = rary[i];
   }
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Device_ID_Register: (done) devsel %s, rdata %s\n", flash_devsel_as_str(devsel), ds); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Device_ID_Register: (done) devsel %s\n", flash_devsel_as_str(devsel));
   return;
 }
 
