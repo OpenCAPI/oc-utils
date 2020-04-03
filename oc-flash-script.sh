@@ -16,9 +16,10 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=2.0
+tool_version=2.1
 # Changes History
 # V2.0 code cleaning
+# V2.1 reduce lines printed to screen (elasped times)
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -32,7 +33,6 @@ printf "===============================\n"
 echo oc-flash_script version is $tool_version
 printf "Tool compiled on: "
 ls -l $package_root/oc-flash|cut -d ' ' -f '6-8'
-printf "\n\n"
 
 force=0
 program=`basename "$0"`

@@ -238,8 +238,8 @@ int main(int argc, char *argv[])
     update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
   }
 
-  printf("Finished Progamming Sequence\n");
-  printf("-------------------------------\n");
+  printf("Finished Programming Sequence\n");
+  printf("-------------------------------");
   
   Check_Accumulated_Errors();
 
@@ -253,7 +253,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
   int cp;
   int CFG;
   int BIN;
-  time_t ct, lt, st, et, eet, set, ept, spt, svt, evt;
+  time_t st, et, eet, set, ept, spt, svt, evt;
   int address_primary, raddress_primary, eaddress_primary, paddress_primary , address_secondary, raddress_secondary, eaddress_secondary, paddress_secondary;
 
   char bin_file[256];
@@ -308,7 +308,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
    read_flash_regs(devsel);
 
  //printf("Entering Erase Segment\n");
- st = lt = set = time(NULL);
+ st = set = time(NULL);
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_64KB_sectors;i++) {
@@ -319,9 +319,10 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
    eaddress_secondary = eaddress_secondary + 65536;
  }
- printf("Erasing Sectors    : completed                           \n");
-
  eet = spt = time(NULL);
+ eet = eet - set;
+ printf("Erasing Sectors    : completed in   %d seconds           \n", (int)eet);
+ 
  //printf("Entering Program Segment\n");
 
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
@@ -343,13 +344,13 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
    //printf("program checkpoint 2\n");
    paddress_secondary = paddress_secondary + 256;
  }
- printf("Writing image code : completed                           \n");
+ ept = svt = time(NULL); 
+ ept = ept - spt;
+ printf("Writing Image code : completed in   %d seconds           \n", (int)ept);
 
- ept = time(NULL);
  //printf("Entering Read Segment\n");
- svt = time(NULL);
-
- int misc_pntcnt = 0;
+	
+  int misc_pntcnt = 0;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    //printf("Reading Page: %d        \r",i);
@@ -366,23 +367,13 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
        }
    }
  }
- printf("Checking image code: completed                           \n");
+ et = evt = time(NULL); 
+ evt = evt - svt;
+ printf("Checking Image code: completed in   %d seconds           \n", (int)evt);
  
- evt = time(NULL);
+ et = et - st;
+ printf("Total Time to write the new Image: %d seconds           \n", (int)et);
  printf("\n");
-
-  //# -------------------------------------------------------------------------------
-  //# Calculate and Print Elapsed Times
-  //# -------------------------------------------------------------------------------
-  et = evt - set;
-  eet = eet - set;
-  ept = ept - spt;
-  evt = evt - svt;
-
-  printf("Erase Time:   %d seconds\n", (int)eet);
-  printf("Program Time: %d seconds\n", (int)ept);
-  printf("Verify Time:  %d seconds\n", (int)evt);
-  printf("Total Time:   %d seconds\n\n", (int)et);
 
  close(BIN);
 /*
