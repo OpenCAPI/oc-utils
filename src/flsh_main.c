@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
     update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
   }
 
-  printf("Finished Progamming Sequence\n");
+  printf("Finished Programming Sequence\n");
   printf("-------------------------------");
   
   Check_Accumulated_Errors();
