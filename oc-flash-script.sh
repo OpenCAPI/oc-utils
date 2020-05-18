@@ -263,7 +263,7 @@ if [ -z "$flash_address" ]; then
      printf "===================================================================================\n"
      echo "NOTE : You are in the process of programming a CAPI2 image in FACTORY area!"
      echo "       A reboot or power cycle will be needed to re-enumerate the cards."
-     echo "       You may need to then program a USER image in USER area"
+     echo "       You may need to then switch your card back to USER area (capi-reset <card_nb> user)"
      printf "===================================================================================\n"
   fi
 fi
