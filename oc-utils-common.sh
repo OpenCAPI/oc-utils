@@ -104,7 +104,11 @@ function reload_card() {
   setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
   printf "Resetting card $1: Image Reloading ... \n"
   printf 0 > /sys/bus/pci/slots/$slot/power
-  printf 1 > /sys/bus/pci/slots/$slot/power
+  if ! printf 1 > /sys/bus/pci/slots/$slot/power 2> /dev/null
+  then
+    echo ">> Card can not power-on. Reboot or power-cycle needed for re-enumeration"
+    exit 1
+  fi
   while true; do
     if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break
