@@ -20,7 +20,7 @@ tool_version=2.3
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
-# V2.2  test if binary image is a capi2 image and correct printf error
+# V2.2 test if binary image is a capi2 image and correct printf error
 # V2.3 adding 250SOC specific code
 
 # get capi-utils root
@@ -123,10 +123,10 @@ if [[ ! -e $1 ]]; then
   exit 1
 fi
 
-# check if CAPI boards exists
+# check if OpenCAPI boards exists
 capi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $capi_check -eq 0 ]; then
-  printf "${bold}ERROR:${normal} No CAPI devices found\n"
+  printf "${bold}ERROR:${normal} No OpenCAPI devices found\n"
   exit 1
 fi
 
@@ -352,7 +352,7 @@ if [ $flash_type == "SPIx8" ]; then
 # until multiboot is enabled, force writing to 0x0
    $package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0 
 else
-  $package_root/oc-flash  --image_file $1 --devicebdf $bdf --startaddr 0x0
+  $package_root/oc-flash  --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
 
 PID=$!

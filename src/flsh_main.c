@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Finished Programming Sequence\n");
-    printf("-------------------------------");
+    printf("-------------------------------\n");
   
     Check_Accumulated_Errors();
 
@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
      //update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
      update_image_zynqmp(binfile,cfgbdf,start_addr);
      printf("Finished Programming Sequence\n");
-     printf("-------------------------------");
+     printf("-------------------------------\n");
   }
   
 
@@ -479,7 +479,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
    }
  }
 
- printf("\n");
+ printf("Writing image code Completed (%d pages written) \n", num_256B_pages);
  axi_write_zynq(FA_QSPI, ack_addr , FA_EXP_OFF, FA_EXP_0123, 0x000000FF, "");
  //printf("Number of writes in decimal:  %d\n", write_count);
  write_count = 0;
