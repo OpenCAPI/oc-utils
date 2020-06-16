@@ -73,6 +73,23 @@ u32  axi_read(                      // Initiate a read operation on the AXI4-Lit
               , char *s             //   Comment to be printed in trace message
               );
 
+void  axi_write_zynq(                     // Initiate a write operation on the AXI4-Lite bus 
+                 u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
+               , u32 axi_addr        //   Select target register within the selected core
+               , u32 exp_enab        //   Choose whether to use data expander
+               , u32 exp_dir         //   Determine expander direction
+               , u32 axi_wdata       //   Data written to AXI4-Lite slave
+               , char *s             //   Comment to be printed in trace message
+               );
+
+u32  axi_read_zynq(                      // Initiate a read operation on the AXI4-Lite bus. Read data is returned.
+                u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
+              , u32 axi_addr        //   Select target register within the selected core
+              , u32 exp_enab        //   Choose whether to use data expander
+              , u32 exp_dir         //   Determine expander direction
+              , char *s             //   Comment to be printed in trace message
+              );
+
 void read_ICAP_regs();              // Read and display all AXI readable registers in HWICAP core
 
 void read_QSPI_regs();              // Read and display all AXI readable registers in Quad SPI core
@@ -167,10 +184,5 @@ void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary);
 
 void Check_Accumulated_Errors(void);  // Check Global error flag to determine if test passed or failed
 
-int reload_image(char image_location[], char cfgbdf[]);
-void reset_ICAP();
-u32 read_ICAP_wfifo_size();
-void write_ICAP_bitstream_word(u32 wdata);
-u32 wait_ICAP_write_done();
 
 #endif

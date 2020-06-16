@@ -49,7 +49,7 @@ typedef unsigned char byte;
   #define CFG_FLASH_ADDR 0x630
   #define CFG_FLASH_DATA 0x634 
 #endif
-
+ #define CFG_SUBSYS 0x02C
 // For function(s): form_FLASH_ADDR()
 // - Values for fields that combine to form the contents of CFG_FLASH_ADDR
 // - Values are already aligned to make combining them easy. Do not change the values unless the hardware implementation changes.
