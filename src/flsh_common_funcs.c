@@ -475,7 +475,7 @@ void axi_write_zynq(                     // Initiate a write operation on the AX
   u32 resp;
   int saved_TRC_CONFIG;
   char s_err[1024];
-  char s_devstat[1024];
+  char s_devstat[1044];
   
   sprintf(call_args,"devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
     axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
@@ -507,7 +507,8 @@ void axi_write_zynq(                     // Initiate a write operation on the AX
     }
     printf("(axi_write): %s:  *** ERROR - detected bad response on axi_write of %s (h%8x) ***\n", call_args, s_err, resp);
   }    
-  sprintf(s_devstat,"(axi_write): %s ", call_args);
+  //sprintf(s_devstat,"(axi_write): %s ", call_args);
+  snprintf(s_devstat, sizeof(s_devstat), "(axi_write): %s ", call_args);
 
   return;
 }
@@ -529,7 +530,7 @@ u32 axi_read_zynq(                      // Initiate a read operation on the AXI4
   u32 rdata;
   int saved_TRC_CONFIG;
   char s_err[1024];
-  char s_devstat[1024];
+  char s_devstat[1044];
  
   sprintf(call_args,"devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
     axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
@@ -560,7 +561,8 @@ u32 axi_read_zynq(                      // Initiate a read operation on the AXI4
     }
     printf("(axi_read): %s:  *** ERROR - detected bad response on axi_read of %s (h%8x) ***\n", call_args, s_err, resp);
   }
-    sprintf(s_devstat,"(axi_read): %s ", call_args);
+  //sprintf(s_devstat,"(axi_read): %s ", call_args);
+  snprintf(s_devstat, sizeof(s_devstat), "(axi_read): %s ", call_args);
 
   // Step 4: Read returned data
   rdata = config_read(CFG_FLASH_DATA, "axi_read  - step 3: retrieve data from FLASH_DATA register");
