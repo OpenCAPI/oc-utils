@@ -103,16 +103,21 @@ function reload_card() {
 # tuned for the new slot naming scheme
   setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
   printf "Resetting card $1: Image Reloading ... \n"
+
   subsys=$(lspci -s `cat /sys/bus/pci/slots/JP91NVB1/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
 # adding specific code for 250SOC card (subsystem_id = 0x066A)
   if [ $subsys == "066a" ]
   then
-  printf "SSID is $subsys\n"
-  setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 634.B=11
-  setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 630.L=00020000
+    printf "SSID is $subsys\n"
+    setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 634.B=11
+    setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 630.L=00020000
   fi
   printf 0 > /sys/bus/pci/slots/$slot/power
-  printf 1 > /sys/bus/pci/slots/$slot/power
+  if ! printf 1 > /sys/bus/pci/slots/$slot/power 2> /dev/null
+  then
+    echo ">> Card can not power-on. Reboot or power-cycle needed for re-enumeration"
+    exit 1
+  fi
   while true; do
     if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break

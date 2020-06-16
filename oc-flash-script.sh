@@ -16,10 +16,12 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=2.1
+tool_version=2.3
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
+# V2.2  test if binary image is a capi2 image and correct printf error
+# V2.3 adding 250SOC specific code
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -128,16 +130,42 @@ if [ $capi_check -eq 0 ]; then
   exit 1
 fi
 
-# make ocxl dir if not present
-mkdir -p /var/ocxl/
+LockDir=/var/ocxl/oc-flash-script.lock
+
+# make cxl dir if not present
+mkdir -p `dirname $LockDir`
 
 # mutual exclusion
-if ! mkdir /var/ocxl/oc-flash-script.lock 2>/dev/null; then
-  printf "The folder \"/var/ocxl/oc-flash-script.lock\" exists.\n"
-  printf "${bold}ERROR:${normal} Another instance of this script is running\n"
-  exit 1
+if ! mkdir $LockDir 2>/dev/null; then
+  echo
+  printf "${bold}ERROR:${normal} Existing LOCK => Another instance of this script is maybe running\n"
+
+  DateLastBoot=`who -b | awk '{print $3 " " $4}'`
+  EpochLastBoot=`date -d "$DateLastBoot" +%s`
+
+  EpochLockDir=`stat --format=%Y $LockDir`
+  DateLockDir=`date --date @$EpochLockDir`
+
+  echo
+  echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+  echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+
+  echo;echo "======================================================="
+  if [ $EpochLockDir -lt $EpochLastBoot ]; then
+     echo "$LockDir modified BEFORE last boot"
+     echo "LOCK is not supposed to still be here"
+     echo "  ==> Deleting and recreating $LockDir"
+     rmdir $LockDir
+     mkdir $LockDir
+  else
+     echo "$LockDir modified AFTER last boot"
+     printf "${bold}ERROR:${normal} Another instance of this script is running\n"
+     echo "Exiting..."
+     exit 1
+  fi
+
 fi
-trap 'rm -rf "/var/ocxl/oc-flash-script.lock"' 0
+trap 'rm -rf "$LockDir"' EXIT
 
 printf "\n"
 # get number of cards in system
@@ -231,6 +259,14 @@ fi
 # get flash address and block size
 if [ -z "$flash_address" ]; then
   flash_address=${flash_partition[$c]}
+  if [[ $1 =~ "fw_" ]]
+  then
+     printf "===================================================================================\n"
+     echo "NOTE : You are in the process of programming a CAPI2 image in FACTORY area!"
+     echo "       A reboot or power cycle will be needed to re-enumerate the cards."
+     echo "       You may need to then switch your card back to USER area (capi-reset <card_nb> user)"
+     printf "===================================================================================\n"
+  fi
 fi
 if [ -z "$flash_block_size" ]; then
   flash_block_size=${flash_block[$c]}

@@ -358,12 +358,13 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
   u32 resp;
   int saved_TRC_CONFIG;
   char s_err[1024];
-  char s_devstat[1024];
-  
-  sprintf(call_args,"devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
-    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
+  char s_devstat[1044];
 
-  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args); 
+  snprintf(call_args, sizeof(call_args),
+	   "devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
+	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args);
 
   // Step 1: config_write to FLASH_DATA, then FLASH_ADDR initiating AXI write
   config_write(CFG_FLASH_DATA, axi_wdata, 4, "axi_write - step 1a: store write data into FLASH_DATA register");
@@ -390,10 +391,10 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
     }
     printf("(axi_write): %s:  *** ERROR - detected bad response on axi_write of %s (h%8x) ***\n", call_args, s_err, resp);
   }
-    
+
   // Check device status signals
-  sprintf(s_devstat,"(axi_write): %s ", call_args);
-  check_axi_status(read_FA, U32_ZERO, s_devstat); 
+  snprintf(s_devstat, sizeof(s_devstat), "(axi_write): %s ", call_args);
+  check_axi_status(read_FA, U32_ZERO, s_devstat);
 
   return;
 }
@@ -415,12 +416,13 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
   u32 rdata;
   int saved_TRC_CONFIG;
   char s_err[1024];
-  char s_devstat[1024];
- 
-  sprintf(call_args,"devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
-    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
+  char s_devstat[1044];
 
-  if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args); 
+  snprintf(call_args, sizeof(call_args),
+	   "devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
+	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args);
 
   // Step 1: config_write to FLASH_ADDR initiating AXI read
   config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_RD, exp_enab, exp_dir), 4, "axi_read  - step 1: write to FLASH_ADDR to initiate AXI read");
@@ -446,119 +448,10 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
     }
     printf("(axi_read): %s:  *** ERROR - detected bad response on axi_read of %s (h%8x) ***\n", call_args, s_err, resp);
   }
-    
+
   // Check device status signals
-  sprintf(s_devstat,"(axi_read): %s ", call_args);
-  check_axi_status(read_FA, U32_ZERO, s_devstat); 
-
-  // Step 4: Read returned data
-  rdata = config_read(CFG_FLASH_DATA, "axi_read  - step 3: retrieve data from FLASH_DATA register");
-
-  if (TRC_AXI == TRC_ON) printf("trace    axi_read completion   (rdata h%8x)\n", rdata); 
-
-  return rdata;
-}
-
-void axi_write_zynq(                     // Initiate a write operation on the AXI4-Lite bus 
-                u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
-              , u32 axi_addr        //   Select target register within the selected core
-              , u32 exp_enab        //   Choose whether to use data expander
-              , u32 exp_dir         //   Determine expander direction
-              , u32 axi_wdata       //   Data written to AXI4-Lite slave
-              , char *s             //   Comment to be printed in trace message
-              )
-{
-  char call_args[1024];
-  u32 read_FA;
-  u32 resp;
-  int saved_TRC_CONFIG;
-  char s_err[1024];
-  char s_devstat[1024];
-  
-  sprintf(call_args,"devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
-    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
-
-  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args); 
-
-  // Step 1: config_write to FLASH_DATA, then FLASH_ADDR initiating AXI write
-  config_write(CFG_FLASH_DATA, axi_wdata, 4, "axi_write - step 1a: store write data into FLASH_DATA register");
-  config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_WR, exp_enab, exp_dir), 4, "axi_write - step 1b: write to FLASH_ADDR initiates");
-
-  // Step 2: config_read's to poll on Write Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
-  saved_TRC_CONFIG = TRC_CONFIG;
-  do  
-  { read_FA = config_read(CFG_FLASH_ADDR, "axi_write - step  2: wait for Write Strobe to become 0 indicating AXI write is complete");
-    TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
-  } while ((read_FA & FA_WR) == FA_WR);    // Continue while Write Strobe is 1
-  TRC_CONFIG = saved_TRC_CONFIG;   // Restore trace setting
-
-   // Step 3: Check Write Response and Device Specific Status
-  resp = (read_FA & FA_WR_RESP_FIELD);
-  if (resp != FA_WR_RESP_OK) {
-    ERRORS_DETECTED++;
-    switch (resp)
-    { case FA_WR_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break; 
-      case FA_WR_RESP_RSVD   : sprintf(s_err,"RESERVED      "); break;
-      case FA_WR_RESP_SLVERR : sprintf(s_err,"SLAVE_ERROR   "); break;
-      case FA_WR_RESP_INVLD  : sprintf(s_err,"INVALID SELECT"); break;
-      default                : sprintf(s_err,"<UNKNOWN>     "); 
-    }
-    printf("(axi_write): %s:  *** ERROR - detected bad response on axi_write of %s (h%8x) ***\n", call_args, s_err, resp);
-  }    
-  sprintf(s_devstat,"(axi_write): %s ", call_args);
-
-  return;
-}
-
-
-
-// --------------------------------------------------------------------------------------------------------
-u32 axi_read_zynq(                      // Initiate a read operation on the AXI4-Lite bus. Read data is returned.
-               u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
-             , u32 axi_addr        //   Select target register within the selected core
-             , u32 exp_enab        //   Choose whether to use data expander
-             , u32 exp_dir         //   Determine expander direction
-             , char *s             //   Comment to be printed in trace message
-             )
-{
-  char call_args[1024];
-  u32 read_FA;
-  u32 resp;
-  u32 rdata;
-  int saved_TRC_CONFIG;
-  char s_err[1024];
-  char s_devstat[1024];
- 
-  sprintf(call_args,"devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
-    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
-
-  if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args); 
-
-  // Step 1: config_write to FLASH_ADDR initiating AXI read
-  config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_RD, exp_enab, exp_dir), 4, "axi_read  - step 1: write to FLASH_ADDR to initiate AXI read");
-
-  // Step 2a: config_read's to poll on Read Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
-  saved_TRC_CONFIG = TRC_CONFIG;
-  do  
-  { read_FA = config_read(CFG_FLASH_ADDR, "axi_read  - step 2: wait for Read Strobe to become 0 indicating AXI read is complete");
-    TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
-  } while ((read_FA & FA_RD) == FA_RD);    // Continue while Read Strobe is 1
-  TRC_CONFIG = saved_TRC_CONFIG;           // Restore trace setting
-
-  // Step 2b: Check Read Response and Device Specific Status
-  resp = (read_FA & FA_RD_RESP_FIELD);
-  if (resp != FA_RD_RESP_OK) {
-    ERRORS_DETECTED++;
-    switch (resp)
-    { case FA_RD_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break; 
-      case FA_RD_RESP_RSVD   : sprintf(s_err,"RESERVED      "); break;
-      case FA_RD_RESP_SLVERR : sprintf(s_err,"SLAVE_ERROR   "); break;
-      case FA_RD_RESP_INVLD  : sprintf(s_err,"INVALID SELECT"); break;
-      default                : sprintf(s_err,"<UNKNOWN>     "); 
-    }
-    printf("(axi_read): %s:  *** ERROR - detected bad response on axi_read of %s (h%8x) ***\n", call_args, s_err, resp);
-  }
-    sprintf(s_devstat,"(axi_read): %s ", call_args);
+  snprintf(s_devstat, sizeof(s_devstat), "(axi_read): %s ", call_args);
+  check_axi_status(read_FA, U32_ZERO, s_devstat);
 
   // Step 4: Read returned data
   rdata = config_read(CFG_FLASH_DATA, "axi_read  - step 3: retrieve data from FLASH_DATA register");
@@ -607,6 +500,7 @@ u32 wait_ICAP_write_done()
       return 0;
     }
   }
+  return 1; //return error
 
 }
 
@@ -946,25 +840,36 @@ void flash_op(                      // The SPI interface shifts data in while si
 
   int  fifo_bytes;                        // How many bytes have been written into the DTR FIFO
 
-  char call_args[1024];                   // Buffers for easier printing
-  char ds[1024];
- 
+  char ds[4096], ds_elt[10];              // buffer for debug traces
+
   byte drr_data[FIFO_DEPTH];              // Temporary storage for data captured by DRR FIFO after shift to FLASH
   int  drr_ptr;                           // Pointer into 'drr_data'
   int  skip_bytes;                        // Number of bytes to skip over which contain shift out from cmd, addr, dummy cycles
 
-  // Save arguments as a string for easier printing later
-  sprintf(call_args,"devsel %s, cmd h%2X, addr h%8X, num_addr %2d, num_dummy %2d, num_bytes %d, dir %s <%s>",
-    flash_devsel_as_str(devsel), cmd, addr, num_addr, num_dummy, num_bytes, fo_dir_as_str(dir), s); 
+  if (TRC_FLASH == TRC_ON) {
+    // Save arguments as a string for easier printing later
+    snprintf(ds, sizeof(ds),
+	     "devsel %s, cmd h%2X, addr h%8X, num_addr %2d, num_dummy %2d, num_bytes %d, dir %s <%s>",
+	     flash_devsel_as_str(devsel), cmd, addr, num_addr, num_dummy,
+	     num_bytes, fo_dir_as_str(dir), s);
+    printf("trace  flash_op        %s\n", ds);
+  }
 
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op        %s\n", call_args); 
-  // Create printable string of write data (up to first 16 bytes)
-  strcpy(ds, ""); 
-  if (num_bytes <= 16) j = num_bytes;    
-  else                 j = 16;
-  for (i = 0; i < j; i++)  sprintf(ds, "%s %2.2X ", ds, wdata[i]);
-  if (num_bytes > 16)      sprintf(ds, "%s ..." , ds);
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op          (hex) wdata[] = %s\n", ds); 
+  if (TRC_FLASH == TRC_ON) {
+    // Create printable string of write data (up to first 16 bytes)
+    if (num_bytes <= 16)
+      j = num_bytes;
+    else
+      j = 16;
+    ds[0] = '\0';
+    for (i = 0; i < j; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), "%2.2X ", wdata[i]);
+      strcat(ds, ds_elt);
+    }
+    if (num_bytes > 16)
+      strcat(ds, "...");
+    printf("trace  flash_op          (hex) wdata[] = %s\n", ds);
+  }
 
   // Check validity of arguements
   if (num_addr > 4) {
@@ -1060,10 +965,13 @@ void flash_op(                      // The SPI interface shifts data in while si
     remaining_fifo_bytes  = FIFO_DEPTH - header_bytes;             // Number of bytes to send yet (to fill the FIFO on this iteration)
   }
   if (debug >= 1) {   // print header_array
-    strcpy(ds, ""); 
-    for (i = 0; i < header_ptr; i++) { sprintf(ds, "%s %2.2X ", ds, header_array[i]); }   
-    printf("flash_op (debug): header_ptr = %d, wdata_ptr = %d, header_bytes = %d, remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", 
-      header_ptr, wdata_ptr, header_bytes, remaining_total_bytes, remaining_fifo_bytes);
+    ds[0] = '\0';
+    for (i = 0; i < header_ptr; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), "%2.2X ", header_array[i]);
+      strcat(ds, ds_elt);
+    }
+    printf("flash_op (debug): header_ptr = %d, wdata_ptr = %d, header_bytes = %d, remaining_total_bytes = %d, remaining_fifo_bytes = %d\n",
+	   header_ptr, wdata_ptr, header_bytes, remaining_total_bytes, remaining_fifo_bytes);
     printf("flash_op (debug): header_array[0:%d] = %s\n", header_bytes-1, ds);
   }
 
@@ -1192,18 +1100,25 @@ void flash_op(                      // The SPI interface shifts data in while si
   axi_wdata = SPISSR_SEL_NONE;  
   axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (disable all chip selects)"); 
 
-  // Create printable string of read data
-  sprintf(ds, "rdata (hex) ");
-  for (i = 0; i < num_bytes; i++)  sprintf(ds, "%s %2X ",ds, *(rdata+i) );
-  if (TRC_FLASH == TRC_ON) printf("trace  flash_op        %s\n\n", ds); 
+  if (TRC_FLASH == TRC_ON) {
+    // Create printable string of read data
+    if (num_bytes <= 16)
+      j = num_bytes;
+    else
+      j = 16;
+    strcpy(ds, "rdata (hex)");
+    for (i = 0; i < j; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+      strcat(ds, ds_elt);
+    }
+    printf("trace  flash_op        %s\n\n", ds);
+  }
 
   FLASH_OP_COUNT++;    // Bump FLASH operation count
 
   //printf("Flash op checkpoint 4\n");
   return;
 }
-
-
 
 // --------------------------------------------------------------------------------------------------------
 void flash_setup(u32 devsel)   // Setup selected FLASH for 9V3 board usage (pass in SPISSR_SEL_DEV1 or SPISSR_SEL_DEV2)
@@ -1307,7 +1222,7 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
   byte rbyte;
   byte rary[20];
   u32  ru32;
-  char ds[1024];
+  char ds[1024], ds_elt[10];
   int i;
   int saved_TRC_FLASH_CMD;
   
@@ -1338,7 +1253,10 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
 
   fr_Device_ID_Register(devsel, rary);
   sprintf(ds, "h");
-  for (i = 0; i < 20; i++)  sprintf(ds, "%s %2.2X ",ds, rary[i] );
+  for (i = 0; i < 20; i++) {
+    snprintf(ds_elt, sizeof(ds_elt), " %2.2X", rary[i]);
+    strcat(ds, ds_elt);
+  }
   printf("            DEVICE ID = %s\n", ds);
 
   printf("----- (End read_flash_regs) -----\n\n");
@@ -1590,19 +1508,17 @@ void fr_Device_ID_Register(u32 devsel, byte *rdata)    // 20 bytes of read data 
 { byte wary[20];
   byte rary[20];
   int i;
-  char ds[100];
+
   for (i=0; i < 20; i++) {
     wary[i] = 0x00; 
   }
   if (check_TRC_FLASH_CMD()) printf("fr_Device_ID_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
   //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
   flash_op(devsel, 0x9E, 0x00000000, 0       , 0        , 20       , wary   , rary   , FO_DIR_RD, "READ DEVICE ID REGISTER");
-  sprintf(ds, "h");
   for (i=0; i < 20; i++) {
-    sprintf(ds, "%s %2.2X", ds, rary[i]); 
     *(rdata + i) = rary[i];
   }
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Device_ID_Register: (done) devsel %s, rdata %s\n", flash_devsel_as_str(devsel), ds); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Device_ID_Register: (done) devsel %s\n", flash_devsel_as_str(devsel));
   return;
 }
 
@@ -1673,7 +1589,7 @@ void fr_Read(u32 devsel, u32 addr, int num_bytes, byte *rary)   // 3 byte addres
 
 // --------------------------------------------------------------------------------------------------------
 void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary)   // 3 byte address
-{ byte *rary;
+{ 
 
   rary = (byte *) malloc(num_bytes * sizeof(byte));  // Just allocate, no need to initialize as it will overwritten by flash_op
   if (rary == NULL) {
