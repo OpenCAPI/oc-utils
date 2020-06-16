@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 International Business Machines
+# Copyright 2016, 2020 International Business Machines
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -108,7 +108,6 @@ function reload_card() {
 # adding specific code for 250SOC card (subsystem_id = 0x066A)
   if [ $subsys == "066a" ]
   then
-    printf "SSID is $subsys\n"
     setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 634.B=11
     setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 630.L=00020000
   fi

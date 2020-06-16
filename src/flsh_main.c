@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
   device = (temp >> 16) & 0xFFFF;
   if ( (vendor != 0x1014) || ( device != 0x062B)) {
     printf("DEVICE: %x VENDOR: %x\n",device,vendor);
-    printf("This card shouldn't be flashed with this script\n");
+    printf("This card shouldn't be flashed with this script.\n");
     exit(-1);
   }
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 
   temp = config_read(CFG_SUBSYS,"Read subsys id of card");
   subsys = (temp >> 16) & 0xFFFF;
-  printf("SUBSYS: %x \n",subsys);
+  //printf("SUBSYS: %x \n",subsys);
 //adding specific code for 250SOC card (subsystem_id = 0x066A)
   if (subsys == 0x066A){
       dualspi_mode_flag = 0;
@@ -234,9 +234,13 @@ int main(int argc, char *argv[])
   }
 //adding specific code for 250SOC card (subsystem_id = 0x066A)
   else {
+     printf("-------------------------------\n");
      printf("Card with ZynqMP Detected\n");
+     printf("Programming Flash with bitstream:\n    %s\n",binfile);
      //update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
      update_image_zynqmp(binfile,cfgbdf,start_addr);
+     printf("Finished Programming Sequence\n");
+     printf("-------------------------------");
   }
   
 
