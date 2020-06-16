@@ -198,44 +198,44 @@ int main(int argc, char *argv[])
     } 
   }
   
- if (subsys != 0x066A) {
+  if (subsys != 0x066A) {
 
-  printf("-------------------------------\n");
-  printf("QSPI master core setup: started\r");
-  QSPI_setup();          // Reset and set up Quad SPI core
-  if(verbose_flag) 
-    read_QSPI_regs();
-
-  TRC_AXI = TRC_OFF;
-  TRC_CONFIG = TRC_OFF;
-
-//ICAP_setup();          // TODO: Create this after can load and read back FLASH image
-  if(verbose_flag) 
-    read_ICAP_regs();
-
-  printf("QSPI master core setup: completed\n");
-
-  printf("-------------------------------\n");
-  printf("Programming Primary SPI with primary bitstream:\n    %s\n",binfile);
-  update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr, verbose_flag);
-
-  if(dualspi_mode_flag) {
     printf("-------------------------------\n");
-    printf("Programming Secondary SPI with secondary bitstream:\n    %s\n",binfile2);
-    update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
-  }
+    printf("QSPI master core setup: started\r");
+    QSPI_setup();          // Reset and set up Quad SPI core
+    if(verbose_flag) 
+      read_QSPI_regs();
 
-  printf("Finished Programming Sequence\n");
-  printf("-------------------------------");
+    TRC_AXI = TRC_OFF;
+    TRC_CONFIG = TRC_OFF;
+
+  //ICAP_setup();          // TODO: Create this after can load and read back FLASH image
+    if(verbose_flag) 
+      read_ICAP_regs();
+
+    printf("QSPI master core setup: completed\n");
+
+    printf("-------------------------------\n");
+    printf("Programming Primary SPI with primary bitstream:\n    %s\n",binfile);
+    update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr, verbose_flag);
+
+    if(dualspi_mode_flag) {
+      printf("-------------------------------\n");
+      printf("Programming Secondary SPI with secondary bitstream:\n    %s\n",binfile2);
+      update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
+    }
+
+    printf("Finished Programming Sequence\n");
+    printf("-------------------------------");
   
-  Check_Accumulated_Errors();
+    Check_Accumulated_Errors();
 
- }
+  }
 # adding specific code for 250SOC card (subsystem_id = 0x066A)
- else {
+  else {
      printf("Card with ZynqMP Detected\n");
      update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
- }
+  }
   
 
 

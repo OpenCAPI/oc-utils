@@ -1590,6 +1590,8 @@ void fr_Read(u32 devsel, u32 addr, int num_bytes, byte *rary)   // 3 byte addres
 // --------------------------------------------------------------------------------------------------------
 void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary)   // 3 byte address
 { 
+  //printf("Entered Page Program Function\n");
+  byte *rary;
 
   rary = (byte *) malloc(num_bytes * sizeof(byte));  // Just allocate, no need to initialize as it will overwritten by flash_op
   if (rary == NULL) {
