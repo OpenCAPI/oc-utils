@@ -461,6 +461,115 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
   return rdata;
 }
 
+void axi_write_zynq(                     // Initiate a write operation on the AXI4-Lite bus 
+                u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
+              , u32 axi_addr        //   Select target register within the selected core
+              , u32 exp_enab        //   Choose whether to use data expander
+              , u32 exp_dir         //   Determine expander direction
+              , u32 axi_wdata       //   Data written to AXI4-Lite slave
+              , char *s             //   Comment to be printed in trace message
+              )
+{
+  char call_args[1024];
+  u32 read_FA;
+  u32 resp;
+  int saved_TRC_CONFIG;
+  char s_err[1024];
+  char s_devstat[1024];
+  
+  sprintf(call_args,"devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
+    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args); 
+
+  // Step 1: config_write to FLASH_DATA, then FLASH_ADDR initiating AXI write
+  config_write(CFG_FLASH_DATA, axi_wdata, 4, "axi_write - step 1a: store write data into FLASH_DATA register");
+  config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_WR, exp_enab, exp_dir), 4, "axi_write - step 1b: write to FLASH_ADDR initiates");
+
+  // Step 2: config_read's to poll on Write Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
+  saved_TRC_CONFIG = TRC_CONFIG;
+  do  
+  { read_FA = config_read(CFG_FLASH_ADDR, "axi_write - step  2: wait for Write Strobe to become 0 indicating AXI write is complete");
+    TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
+  } while ((read_FA & FA_WR) == FA_WR);    // Continue while Write Strobe is 1
+  TRC_CONFIG = saved_TRC_CONFIG;   // Restore trace setting
+
+   // Step 3: Check Write Response and Device Specific Status
+  resp = (read_FA & FA_WR_RESP_FIELD);
+  if (resp != FA_WR_RESP_OK) {
+    ERRORS_DETECTED++;
+    switch (resp)
+    { case FA_WR_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break; 
+      case FA_WR_RESP_RSVD   : sprintf(s_err,"RESERVED      "); break;
+      case FA_WR_RESP_SLVERR : sprintf(s_err,"SLAVE_ERROR   "); break;
+      case FA_WR_RESP_INVLD  : sprintf(s_err,"INVALID SELECT"); break;
+      default                : sprintf(s_err,"<UNKNOWN>     "); 
+    }
+    printf("(axi_write): %s:  *** ERROR - detected bad response on axi_write of %s (h%8x) ***\n", call_args, s_err, resp);
+  }    
+  sprintf(s_devstat,"(axi_write): %s ", call_args);
+
+  return;
+}
+
+
+
+// --------------------------------------------------------------------------------------------------------
+u32 axi_read_zynq(                      // Initiate a read operation on the AXI4-Lite bus. Read data is returned.
+               u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
+             , u32 axi_addr        //   Select target register within the selected core
+             , u32 exp_enab        //   Choose whether to use data expander
+             , u32 exp_dir         //   Determine expander direction
+             , char *s             //   Comment to be printed in trace message
+             )
+{
+  char call_args[1024];
+  u32 read_FA;
+  u32 resp;
+  u32 rdata;
+  int saved_TRC_CONFIG;
+  char s_err[1024];
+  char s_devstat[1024];
+ 
+  sprintf(call_args,"devsel %s, addr %s (h%8.8X),                  exp_enab %s, exp_dir %s, <%s>",
+    axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s); 
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args); 
+
+  // Step 1: config_write to FLASH_ADDR initiating AXI read
+  config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_RD, exp_enab, exp_dir), 4, "axi_read  - step 1: write to FLASH_ADDR to initiate AXI read");
+
+  // Step 2a: config_read's to poll on Read Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
+  saved_TRC_CONFIG = TRC_CONFIG;
+  do  
+  { read_FA = config_read(CFG_FLASH_ADDR, "axi_read  - step 2: wait for Read Strobe to become 0 indicating AXI read is complete");
+    TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
+  } while ((read_FA & FA_RD) == FA_RD);    // Continue while Read Strobe is 1
+  TRC_CONFIG = saved_TRC_CONFIG;           // Restore trace setting
+
+  // Step 2b: Check Read Response and Device Specific Status
+  resp = (read_FA & FA_RD_RESP_FIELD);
+  if (resp != FA_RD_RESP_OK) {
+    ERRORS_DETECTED++;
+    switch (resp)
+    { case FA_RD_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break; 
+      case FA_RD_RESP_RSVD   : sprintf(s_err,"RESERVED      "); break;
+      case FA_RD_RESP_SLVERR : sprintf(s_err,"SLAVE_ERROR   "); break;
+      case FA_RD_RESP_INVLD  : sprintf(s_err,"INVALID SELECT"); break;
+      default                : sprintf(s_err,"<UNKNOWN>     "); 
+    }
+    printf("(axi_read): %s:  *** ERROR - detected bad response on axi_read of %s (h%8x) ***\n", call_args, s_err, resp);
+  }
+    sprintf(s_devstat,"(axi_read): %s ", call_args);
+
+  // Step 4: Read returned data
+  rdata = config_read(CFG_FLASH_DATA, "axi_read  - step 3: retrieve data from FLASH_DATA register");
+
+  if (TRC_AXI == TRC_ON) printf("trace    axi_read completion   (rdata h%8x)\n", rdata); 
+
+  return rdata;
+}
+
 u32 read_ICAP_reg(u32 reg_addr)
 {
   u32 rdata;
