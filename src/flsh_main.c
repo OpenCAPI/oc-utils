@@ -40,7 +40,8 @@
 
 extern void my_test();   
 int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag);
-int update_image_zynqmp(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr);
+//int update_image_zynqmp(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr);
+int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr);
 
 int main(int argc, char *argv[])
 {
@@ -163,7 +164,7 @@ int main(int argc, char *argv[])
   temp = config_read(CFG_SUBSYS,"Read subsys id of card");
   subsys = (temp >> 16) & 0xFFFF;
   printf("SUBSYS: %x \n",subsys);
-# adding specific code for 250SOC card (subsystem_id = 0x066A)
+//adding specific code for 250SOC card (subsystem_id = 0x066A)
   if (subsys == 0x066A){
       dualspi_mode_flag = 0;
   }
@@ -231,10 +232,11 @@ int main(int argc, char *argv[])
     Check_Accumulated_Errors();
 
   }
-# adding specific code for 250SOC card (subsystem_id = 0x066A)
+//adding specific code for 250SOC card (subsystem_id = 0x066A)
   else {
      printf("Card with ZynqMP Detected\n");
-     update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
+     //update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
+     update_image_zynqmp(binfile,cfgbdf,start_addr);
   }
   
 
@@ -375,7 +377,8 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 }
 
 
-int update_image_zynqmp(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr)
+//int update_image_zynqmp(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr)
+int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
 {
   int priv1,priv2;
   int dat, dif;
@@ -512,7 +515,7 @@ void my_test(void)
  byte wdata[1024];
  byte rdata[1024];
  int i;
- char ds[1024];
+ char ds[1024], ds_elt[10];
 
  printf("\n Entered my_test \n\n");
 
@@ -607,7 +610,13 @@ void my_test(void)
    TRC_FLASH = TRC_ON;
 
    fr_Read(SPISSR_SEL_DEV1, 0x00000100, 1024, rdata);  // WARNING: calling fr_Read somehow changes wdata[0,1,2] to FF. Can't figure out why
-   sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   //sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   // Create printable string of read data
+   strcpy(ds, "rdata (hex)");
+   for (i = 0; i < 20; i++) {
+     snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+     strcat(ds, ds_elt);
+   }
    printf("\nBefore 1st PAGE PROGRAM and ERASE: Read of 0x100 = %s\n", ds);
 
    fw_Write_Enable(SPISSR_SEL_DEV1);
@@ -616,7 +625,13 @@ void my_test(void)
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(SPISSR_SEL_DEV1);
 
    fr_Read(SPISSR_SEL_DEV1, 0x00000100, 1024, rdata);
-   sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   //sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   // Create printable string of read data
+   strcpy(ds, "rdata (hex)");
+   for (i = 0; i < 20; i++) {
+     snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+     strcat(ds, ds_elt);
+   }
    printf("\nAfter 1st PAGE PROGRAM, but before ERASE: Read of 0x100 = %s\n", ds);
 
    fw_Write_Enable(SPISSR_SEL_DEV1);
@@ -625,7 +640,13 @@ void my_test(void)
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(SPISSR_SEL_DEV1);
 
    fr_Read(SPISSR_SEL_DEV1, 0x00000100, 1024, rdata);
-   sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   //sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   // Create printable string of read data
+   strcpy(ds, "rdata (hex)");
+   for (i = 0; i < 20; i++) {
+     snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+     strcat(ds, ds_elt);
+   }
    printf("\nAfter ERASE, before 2nd PAGE PROGRAM: Read of 0x100 = %s\n", ds);
 
    for (i=0; i < 1024; i++) { wdata[i] = ~(i+1); };      // Change write data
@@ -635,7 +656,13 @@ void my_test(void)
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(SPISSR_SEL_DEV1);
 
    fr_Read(SPISSR_SEL_DEV1, 0x00000100, 1024, rdata);
-   sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   //sprintf(ds, "rdata (hex) "); for (i = 0; i < 20; i++) sprintf(ds, "%s %2X ",ds, *(rdata+i) );
+   // Create printable string of read data
+   strcpy(ds, "rdata (hex)");
+   for (i = 0; i < 20; i++) {
+     snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+     strcat(ds, ds_elt);
+   }
    printf("\nAfter 2nd PAGE PROGRAM: Read of 0x100 = %s\n", ds);
 
 
