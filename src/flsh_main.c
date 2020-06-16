@@ -315,7 +315,6 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_64KB_sectors;i++) {
-   //printf("Erasing Sector: %d      \r",i);
    printf("Erasing Sectors    : %d %% of %d sectors   \r",(int)(i*100/num_64KB_sectors), num_64KB_sectors);
    fw_Write_Enable(devsel);
    fw_64KB_Sector_Erase(devsel, eaddress_secondary);
@@ -389,7 +388,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
   int cp;
   int CFG;
   int BIN;
-  time_t ct, lt, st, et, eet, set, ept, spt, svt, evt, mvt;
+  time_t et, set, evt;
   int address_primary, raddress_primary, eaddress_primary, paddress_primary , address_secondary, raddress_secondary, eaddress_secondary, paddress_secondary;
 
   char bin_file[256];
@@ -444,11 +443,10 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
  u32 ack_addr;
 
  printf("Erasing pages....\n");
- st = lt = set = time(NULL);
+ set = time(NULL);
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
 
- eet = spt = time(NULL);
  write_count = 0;
  
  write_addr = 0x00000000;
@@ -458,7 +456,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    if (i > 1){
-       printf("Writing Page: %d        \r",i);
+       printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);
    }
    ack_status = axi_read_zynq(FA_QSPI, ack_addr, FA_EXP_OFF, FA_EXP_0123, "");
 
@@ -481,28 +479,17 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
    }
  }
 
+ printf("\n");
  axi_write_zynq(FA_QSPI, ack_addr , FA_EXP_OFF, FA_EXP_0123, 0x000000FF, "");
- printf("Number of writes in decimal:  %d\n", write_count);
+ //printf("Number of writes in decimal:  %d\n", write_count);
  write_count = 0;
  
-
- ept = time(NULL);
- svt = time(NULL);
-
  config_write(0x638, 0x00000000, 4, "");
  printf("Done copying image from DDR to flash \n");
 
+
  evt = time(NULL);
-
-  //# -------------------------------------------------------------------------------
-  //# Calculate and Print Elapsed Times
-  //# -------------------------------------------------------------------------------
-  et = evt - set;
-  eet = eet - set;
-  ept = ept - spt;
-  evt = evt - svt;
-  mvt = evt - ept;
-
+ et = evt - set;
 
  printf("Total Time:   %d seconds\n\n", (int)et);
 
