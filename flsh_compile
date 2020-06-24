@@ -1,0 +1,3 @@
+# compile flash code
+gcc -fno-stack-protector -I include -o oc-flash src/flsh_global_vars.c src/flsh_common_funcs.c src/flsh_main.c
+
