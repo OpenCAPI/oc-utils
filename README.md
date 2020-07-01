@@ -1,5 +1,3 @@
-# !UNDER DEVELOPMENT!
-
 # oc-utils
 OpenCAPI Utils, abbreviated as oc-utils, is a scripts repository to program the flash, reset card, reload flash and debug.
 
@@ -16,10 +14,10 @@ Compile:
 
 Scripts:
 
-* **oc-flash-script.sh primary.bin secondary.bin:** Write binary files to FLASH. You can select which card will be flashed according to the OpenCAPI card connection node.
-* **oc-reload.sh:** Reload the image from FLASH to FPGA core which is usually the next step of oc-flash-script
+* **oc-flash-script.sh primary.bin secondary.bin:** Write binary files to FLASH and reloads the FPGA with this binary. You can select which card will be flashed according to the OpenCAPI card connection node.
+* **oc-reload.sh:** Reload the image from FLASH to FPGA core. Note this is the last step of oc-flash-script process.
 * **oc-reset.sh:** Reset one CARD as you select (Sent reset signal to FPGA). You should be aware that this is only a reset operation for a specific OpenCAPI card.
-* **oc-list-cards.sh:** List the card programming information. 
+* **oc-list-cards.sh:** List the recorded card programming information (might not be accurate if cards have been physically exchanged). 
 
 Add "-h" to get more options for above scripts.
 
@@ -44,8 +42,11 @@ Online updating had been verified on following FPGA cards with OC-Accel bitstrea
 
 * AD9V3
 * AD9H3
+* BW250SOC
 
 on System FP5290G2, IC922, S924 and AC922 with specific firmware (skiboot) and OS kernels. 
+
+Note AD9H7 online flashing is not available yet
 
 Contact your technical support team for more information.
 
