@@ -104,7 +104,8 @@ function reload_card() {
   setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
   printf "Resetting card $1: Image Reloading ... \n"
 
-  subsys=$(lspci -s `cat /sys/bus/pci/slots/JP91NVB1/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
+# subsys=$(lspci -s `cat /sys/bus/pci/slots/JP91NVB1/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
+  subsys=$(lspci -s `cat /sys/bus/pci/slots/$slot/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
 # adding specific code for 250SOC card (subsystem_id = 0x066A)
   if [ $subsys == "066a" ]
   then
