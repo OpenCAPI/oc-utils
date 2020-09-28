@@ -183,7 +183,7 @@ done
 printf "\n${bold}Current date is ${normal}$(date)\n\n"
 
 # print table header
-printf "Logs shows that last programming was:\n"
+printf "Following logs show last programming files (except if hardware or capi version has changed):\n"
 printf "${bold}%-20s %-30s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
