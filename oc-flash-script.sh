@@ -281,7 +281,7 @@ fi
 # Deal with the second argument
 if [ $flash_type == "SPIx8" ]; then
     if [ $# -eq 1 ]; then
-      printf "${bold}ERROR:${normal} Input argument missing. The seleted device is SPIx8 and needs both primary and secondary bin files\n"
+      printf "${bold}ERROR:${normal} Input argument missing. The selected device is SPIx8 and needs both primary and secondary bin files\n"
       usage
       exit 1
     fi
