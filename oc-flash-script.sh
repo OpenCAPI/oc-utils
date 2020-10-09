@@ -304,7 +304,7 @@ fi
 if (($force != 1)); then
   # prompt to confirm
   while true; do
-    printf "REMINDER: It is safer to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n" 
+    printf "REMINDER: It is mandatory to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n" 
     printf "You will flash ${bold}card$c${normal} with:\n     ${bold}$1${normal}\n" 
     if [ $flash_type == "SPIx8" ]; then
         printf " and ${bold}$2${normal}\n" 
