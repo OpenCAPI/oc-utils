@@ -310,7 +310,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  if(verbose_flag)
    read_flash_regs(devsel);
 
- //printf("Entering Erase Segment\n");
+ printf("Entering Erase Segment\n");
  st = set = time(NULL);
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
@@ -325,7 +325,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  eet = eet - set;
  printf("Erasing Sectors    : completed in   %d seconds           \n", (int)eet);
  
- //printf("Entering Program Segment\n");
+ printf("Entering Program Segment\n");
 
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
@@ -345,7 +345,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  ept = ept - spt;
  printf("Writing Image code : completed in   %d seconds           \n", (int)ept);
 
- //printf("Entering Read Segment\n");
+ printf("Entering Read Segment\n");
 	
   int misc_pntcnt = 0;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
@@ -442,21 +442,22 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
 
  u32 ack_addr;
 
- printf("Erasing pages....\n");
+ //printf("reseting file pointer....\n");
  set = time(NULL);
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
-
  write_count = 0;
  
  write_addr = 0x00000000;
  ack_addr =   0x00001000;
  ack_status = 0x00000001;
-
+//printf("Beginning writing through Zynq ...\n");
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    if (i > 1){
-       printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);
+	   if(i % 500){
+       printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);}
+
    }
    ack_status = axi_read_zynq(FA_QSPI, ack_addr, FA_EXP_OFF, FA_EXP_0123, "");
 
