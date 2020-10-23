@@ -455,7 +455,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    if (i > 1){
-	   if(i % 500){
+	   if(i % 1000){
        printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);}
 
    }
