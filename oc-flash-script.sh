@@ -16,12 +16,13 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=2.3
+tool_version=2.31
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
 # V2.2 test if binary image is a capi2 image and correct printf error
 # V2.3 adding 250SOC specific code
+# V2.31 repaired the 4 bytes mode for 9H3
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"

@@ -1245,6 +1245,7 @@ void flash_setup(u32 devsel)   // Setup selected FLASH for 9V3 board usage (pass
   // Reset FLASH by performing RESET ENABLE, followed by RESET MEMORY
   fw_Reset_Enable(devsel); 
   fw_Reset_Memory(devsel);
+  fw_Write_Enable(devsel); // Collin Nov 18th, add this for 9H3 card 4-byte addressing set
   fw_Enter_4B_Adress_Mode(devsel); //rblack must enter 4B address mode for any modern fpga/flash size.
 #ifdef USE_SIM_TO_TEST
   // Workaround for sim. Per Kevin Roth at AlphaData, pull up inside Micron part avoids need to do this.
