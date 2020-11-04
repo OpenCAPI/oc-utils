@@ -224,19 +224,20 @@ printf "\n"
 if (($card >= 0)); then
 #  c=$((10#$card))
 # Assign C to 4 digits
-c=`printf "%04i" $card`
+card4=`printf "%04i" $card`
 
-# search for c occurence and get line number in list of slots
-c=$(grep  -n ${c} <<<$allcards| cut -f1 -d:)
-if (($c -eq '-1')) ; then
-echo "Requested slot $card can't be found among :"
-echo $allcards
-exit 1
+# search for card4 occurence and get line number in list of slots
+ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+echo "DEBUG: line of corresponding slot is $ln"
+if (($ln -lt 0 )); then
+ echo "Requested slot $card4 can't be found among :"
+ echo $allcards
+ exit 1
 fi
 
 # Calculate the position number from line number to use script in the old way
 c=$(($c - 1))
-echo requested slot $card has been associated to card relative position: card$c 
+echo Requested slot $card has been associated to card relative position: card$c 
 
 #if (( "$c" >= "$n" )); then
    # printf "${bold}ERROR:${normal} Wrong card number ${card}\n"
