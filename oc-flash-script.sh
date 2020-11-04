@@ -16,13 +16,14 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=2.31
+tool_version=3.00
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
 # V2.2 test if binary image is a capi2 image and correct printf error
 # V2.3 adding 250SOC specific code
 # V2.31 repaired the 4 bytes mode for 9H3
+# V3.00 reordering the slot numbering
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -76,6 +77,10 @@ function usage() {
 # Parse any options given on the command line
 while getopts ":C:fVhr" opt; do
   case ${opt} in
+# we kept C as option name to avoid changing existing scripts, but "C" now represents the slot number
+# when provided it will be converted temporarilly to a card relative position to maintain
+# compatibility
+# The ultimate goal is to switch to slot number everywhere in this script
       C)
       card=$OPTARG
       ;;
@@ -213,13 +218,30 @@ while read d ; do
 
 
 printf "\n"
-# card is set via parameter since it is positive
+# card is set via parameter since it is positive (otherwise default to -1)
+# $card parameter when provided needs to be the slot number
+# we translate it to card position in the old numbering way (eg: 0 to n-1)
 if (($card >= 0)); then
-  c=$((10#$card))
-  if (( "$c" >= "$n" )); then
-    printf "${bold}ERROR:${normal} Wrong card number ${card}\n"
-    exit 1
-  fi
+#  c=$((10#$card))
+# Assign C to 4 digits
+c=`printf "%04i" $card`
+
+# search for c occurence and get line number in list of slots
+c=$(grep  -n ${c} <<<$allcards| cut -f1 -d:)
+if (($c -eq '-1')) ; then
+echo "Requested slot $card can't be found among :"
+echo $allcards
+exit 1
+fi
+
+# Calculate the position number from line number to use script in the old way
+c=$(($c - 1))
+echo requested slot $card has been associated to card relative position: card$c 
+
+#if (( "$c" >= "$n" )); then
+   # printf "${bold}ERROR:${normal} Wrong card number ${card}\n"
+   # exit 1
+  #fi
 else
 # prompt card to flash to
   while true; do
