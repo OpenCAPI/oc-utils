@@ -236,7 +236,7 @@ if (($ln -lt 0 )); then
 fi
 
 # Calculate the position number from line number to use script in the old way
-c=$(($c - 1))
+c=$(($ln - 1))
 echo Requested slot $card has been associated to card relative position: card$c 
 
 #if (( "$c" >= "$n" )); then
