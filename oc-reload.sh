@@ -38,7 +38,7 @@ function usage() {
   echo "    [-h] Print this help message."
   echo
   echo "Utility to reload FPGA image from the FPGA Flash."
-  echo "Pls notify other users who you work with them on the same server."
+  echo "Please notify other users who you work with them on the same server."
   echo
 }
 # Select function for FPGA Cards Selection
@@ -84,7 +84,7 @@ function select_cards() {
     # prompt card until input is not in list of available slots
     while ! [[ "$c" =~ ^($slot_enum)$ ]]
     do
-        echo -e "Which card number do you want to reset? [$slot_enum]: \c" | sed 's/|/-/g'
+        echo -e "Which card number do you want to reload FPGA code from Flash and reset? [$slot_enum]: \c" | sed 's/|/-/g'
         read -r c
      done
     printf "\n"
@@ -139,6 +139,5 @@ else
         select_cards
         # Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
-        reset_card ${card} factory "Resetting OpenCAPI Adapter ${card}"
 fi
 reload_card $card factory "Image Reloading for OpenCAPI Adapter $card}"
