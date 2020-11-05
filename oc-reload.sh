@@ -32,6 +32,8 @@ function usage() {
   echo -e "        \033[33m sudo ./oc-reload.sh -C IBM,oc-snap.0004:00:00.1.0 \033[0m"
   echo "      Or:"
   echo -e "        \033[33m sudo ./oc-reload.sh -C 0004:00:00.0 \033[0m"
+  echo "      Or:"
+  echo -e "        \033[33m sudo ./oc-reload.sh -C 4 \033[0m"
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
   echo
@@ -39,15 +41,14 @@ function usage() {
   echo "Pls notify other users who you work with them on the same server."
   echo
 }
-
 # Select function for FPGA Cards Selection
 function select_cards() {
     # print current date on server for comparison
     printf "\n${bold}Current date:${normal}$(date)\n"
-    
+
     # get number of cards in system
     n=`ls /dev/ocxl 2>/dev/null | wc -l`
-    printf "$n cards found.\n"
+    printf "$n OpenCAPI cards found.\n"
 
     # Find all OC cards in the system
     allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
@@ -55,27 +56,36 @@ function select_cards() {
 
     # print card information
     i=0;
+    slot_enum=""
+    delimiter="|"
     while read d ; do
-	card_info=`ls /dev/ocxl/*${allcards_array[$i]:0:4}*`
-	printf "Card$i: ${card_info##*/} \n"
-	i=$[$i+1]
-    done < <( lspci -d "1014":"062b" -s .1 )
+      p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
+      # translate the slot number string to a hexa number
+      card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
+      # build a slot_enum of all card numbers and use in the test menu to test user input
+      if [ -z "$slot_enum" ]; then
+         slot_enum=$card_slot_hex
+      else
+         slot_enum=$slot_enum$delimiter$card_slot_hex
+      fi
+
+      # find in oc-devices files the card corresponding to the slot to display the informations
+      while IFS='' read -r line || [[ -n $line ]]; do
+        if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
+          parse_info=($line)
+          board_vendor[$i]=${parse_info[1]}
+          printf "%-8s %-30s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]} - ${board_vendor[$i]}"
+        fi
+      done < "$package_root/oc-devices"
+      i=$[$i+1]
+     done < <( lspci -d "1014":"062b" -s .1 )
     printf "\n"
 
-    # prompt card to flash to
-    while true; do
-        read -p "Which card do you want to reload image from FLASH? [0-$(($n - 1))] " c
-        if ! [[ $c =~ ^[0-9]+$ ]]; then
-            printf "${bold}ERROR:${normal} Invalid input\n"
-        else
-            c=$((10#$c))
-            if (( "$c" >= "$n" )); then
-                printf "${bold}ERROR:${normal} Wrong card number\n"
-                exit 1
-            else
-                break
-            fi
-        fi
+    # prompt card until input is not in list of available slots
+    while ! [[ "$c" =~ ^($slot_enum)$ ]]
+    do
+        echo -e "Which card number do you want to reset? [$slot_enum]: \c" | sed 's/|/-/g'
+        read -r c
      done
     printf "\n"
 
@@ -116,21 +126,19 @@ ulimit -c unlimited
 # check if CAPI boards exists
 capi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $capi_check -eq 0 ]; then
-  printf "${bold}ERROR:${normal} No CAPI devices found\n"
+  printf "${bold}ERROR:${normal} No OpenCAPI devices found\n"
   exit 1
 fi
 
 if [ -n "$card" ]; then
-        reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+        if [[ $card  != *":"* ]]; then
+           # if card argument is just the card slot (with no :) then add the necessary stuff around it
+           card=$(printf '%.4x:00:00.0' "0x${card}")
+        fi
 else
         select_cards
-        # Find all OC cards in the system
-        n=`ls /dev/ocxl 2>/dev/null | wc -l`
-	if (($c < 0 )) || (( "$c" >= "$n" )); then
-            printf "${bold}ERROR:${normal} Wrong card number ${c}\n"
-            exit 1
-        fi
-        reload_card ${allcards_array[$c]} factory "Image Reloading for OpenCAPI Adapter ${allcards_array[$c]}"
+        # Convert the slot number into a 000x:00:00.0 slot number
+        card=$(printf '%.4x:00:00.0' "0x${c}")
+        reset_card ${card} factory "Resetting OpenCAPI Adapter ${card}"
 fi
-
-
+reload_card $card factory "Image Reloading for OpenCAPI Adapter $card}"
