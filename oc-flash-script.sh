@@ -83,6 +83,7 @@ while getopts ":C:fVhr" opt; do
 # The ultimate goal is to switch to slot number everywhere in this script
       C)
       card=$OPTARG
+      paramcard=1
       ;;
       f)
       force=1
@@ -190,9 +191,14 @@ printf "\n${bold}Current date is ${normal}$(date)\n\n"
 
 # print table header
 printf "Following logs show last programming files (except if hardware or capi version has changed):\n"
-printf "${bold}%-20s %-30s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
+printf "${bold}%-20s %-35s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by"
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
+if [ -z "$allcards" ]; then
+	echo "No OpenCAPI cards found.\n"
+	exit 1
+fi
+
 allcards_array=($allcards)
 
 # print card information and flash history
@@ -209,7 +215,8 @@ while read d ; do
       flash_block[$i]=${parse_info[4]}
       flash_interface[$i]=${parse_info[5]}
       flash_secondary[$i]=${parse_info[6]}
-      printf "%-20s %-30s %-29s %-20s %s\n" "card$i:${allcards_array[$i]}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
+      bin_list=(${f:51})
+      printf "%-20s %-35s %-29s %-20s \n\t%s\n" "Card $i: ${allcards_array[$i]}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
       echo ""
     fi
   done < "$package_root/oc-devices"
@@ -221,28 +228,25 @@ printf "\n"
 # card is set via parameter since it is positive (otherwise default to -1)
 # $card parameter when provided needs to be the slot number
 # we translate it to card position in the old numbering way (eg: 0 to n-1)
-if (($card >= 0)); then
-#  c=$((10#$card))
-# Assign C to 4 digits
-card4=`printf "%04i" $card`
-
-# search for card4 occurence and get line number in list of slots
-ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
-echo "DEBUG: line of corresponding slot is $ln"
-if (($ln -lt 0 )); then
- echo "Requested slot $card4 can't be found among :"
- echo $allcards
- exit 1
-fi
-
-# Calculate the position number from line number to use script in the old way
-c=$(($ln - 1))
-echo Requested slot $card has been associated to card relative position: card$c 
-
-#if (( "$c" >= "$n" )); then
-   # printf "${bold}ERROR:${normal} Wrong card number ${card}\n"
-   # exit 1
-  #fi
+if [ ! -z $paramcard ]; then
+	# Assign C to 4 digits hexa
+#	card4=`printf "%04x" $card`
+	card4=$(printf '%04x' "0x${card}")
+	echo "Slot is: $card4"
+	# search for card4 occurence and get line number in list of slots
+	ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+	
+	if [ -z $ln ]; then
+		echo "Requested slot $card4 can't be found among :"
+		echo $allcards
+		exit 1
+	else
+		ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+		# echo "Corresponding slot is found at position: $ln"
+		# Calculate the position number from line number to use script in the old way
+		c=$(($ln - 1))
+		echo Card is: card$c
+	fi
 else
 # prompt card to flash to
   while true; do
