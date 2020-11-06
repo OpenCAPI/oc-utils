@@ -207,6 +207,7 @@ i=0;
     delimiter="|"
 
 while read d ; do
+<<<<<<< HEAD
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	echo $p[$i]
 	# translate the slot number string to a hexa number
@@ -237,7 +238,6 @@ while read d ; do
       	done < "$package_root/oc-devices"
       	i=$[$i+1]
 done < <( lspci -d "1014":"062b" -s .1 )
-
 
 printf "\n"
 # card is set via parameter since it is positive (otherwise default to -1)
