@@ -217,7 +217,9 @@ while read d ; do
       flash_secondary[$i]=${parse_info[6]}
       component_list=(${line:6:23})
       bin_list=(${f:51})
-      printf "%-20s %-35s %-29s %-20s \n\t%s \n\t%s\n" "Card $i: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}" "${bin_list[0]}" "${bin_list[1]}"
+      printf "%-20s %-35s %-29s %-20s \n" "Card $i: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+      #print the name of the last image (can be 2 files)
+      printf "\t%s \n\t%s\n" "${bin_list[0]}" "${bin_list[1]}"
       echo ""
     fi
   done < "$package_root/oc-devices"
