@@ -191,7 +191,7 @@ printf "\n${bold}Current date is ${normal}$(date)\n\n"
 
 # print table header
 printf "Following logs show last programming files (except if hardware or capi version has changed):\n"
-printf "${bold}%-20s %-35s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by"
+printf "${bold}%-7s %-35s %-29s %-20s %s${normal}\n" "#" "Card slot and name" "Flashed" "by"
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
 if [ -z "$allcards" ]; then
@@ -208,7 +208,6 @@ i=0;
 
 while read d ; do
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
-	echo $p[$i]
 	# translate the slot number string to a hexa number
   	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
 	# build a slot_enum of all card numbers and use in the test menu to test user input
@@ -230,7 +229,7 @@ while read d ; do
 		  	flash_secondary[$i]=${parse_info[6]}
 		  	component_list=(${line:6:23})
 		  	bin_list=(${f:51})
-		  	printf "%-20s %-35s %-29s %-20s \n" "Card $i: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+		  	printf "%-8s %-35s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
 		  	printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
 		  	echo ""
 	    	fi
