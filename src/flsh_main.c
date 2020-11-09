@@ -329,7 +329,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
-	 if(i % 30000){
+	 if(i % 300000){
 	      	 printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);}
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
