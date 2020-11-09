@@ -207,7 +207,6 @@ i=0;
     delimiter="|"
 
 while read d ; do
-<<<<<<< HEAD
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	echo $p[$i]
 	# translate the slot number string to a hexa number
