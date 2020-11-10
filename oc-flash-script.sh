@@ -259,7 +259,7 @@ if [ ! -z $paramcard ]; then
 		# echo "Corresponding slot is found at position: $ln"
 		# Calculate the position number from line number to use script in the old way
 		c=$(($ln - 1))
-		echo Card is: card$c
+		#echo Card is: card$c
 	fi
 else
 # prompt card to flash to
@@ -408,11 +408,9 @@ if [ $flash_type == "SPIx8" ]; then
 	# SPIx8 needs two file inputs (primary/secondary)
 	#  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
 	# until multiboot is enabled, force writing to 0x0
-	#echo "$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0" 
 	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
 else
-	#echo "$package_root/oc-flash  --image_file1 $1 --devicebdf $bdf --startaddr 0x0"
-	echo "$package_root/oc-flash  --image_file1 $1 --devicebdf $bdf --startaddr 0x0"
+	$package_root/oc-flash  --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
 
 PID=$!
