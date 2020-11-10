@@ -206,11 +206,12 @@ i=0;
     slot_enum=""
     delimiter="|"
 
+# Collecting informations from oc-devices file    
 while read d ; do
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	# translate the slot number string to a hexa number
   	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
-	# build a slot_enum of all card numbers and use in the test menu to test user input
+	# build a slot_enum of all card numbers and use it in the test menu to test user input
 	if [ -z "$slot_enum" ]; then
 		slot_enum=$card_slot_hex
 	else
@@ -222,7 +223,7 @@ while read d ; do
 	    	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
 		  	parse_info=($line)
 		  	board_vendor[$i]=${parse_info[1]}
-		  	fpga_type[$i]=${parse_info[2]}
+		  	fpga_manuf[$i]=${parse_info[2]}
 		  	flash_partition[$i]=${parse_info[3]}
 		  	flash_block[$i]=${parse_info[4]}
 		  	flash_interface[$i]=${parse_info[5]}
@@ -280,7 +281,7 @@ else
     # prompt card until input is in list of available slots
     while ! [[ "$c" =~ ^($slot_enum)$ ]]
     do
-        echo -e "Which card number do you want to reset? [$slot_enum]: \c" | sed 's/|/-/g'
+        echo -e "Which card number do you want to flash? [$slot_enum]: \c" | sed 's/|/-/g'
         read -r c
      done
     printf "\n"
@@ -297,17 +298,17 @@ printf "\n"
 
 # check file type
 FILE_EXT=${1##*.}
-if [[ ${fpga_type[$c]} == "Altera" ]]; then
+if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   if [[ $FILE_EXT != "rbf" ]]; then
     printf "${bold}ERROR: ${normal}Wrong file extension: .rbf must be used for boards with Altera FPGA\n"
     exit 0
   fi
-elif [[ ${fpga_type[$c]} == "Xilinx" ]]; then
+elif [[ ${fpga_manuf[$c]} == "Xilinx" ]]; then
   if [[ $FILE_EXT != "bin" ]]; then
     printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
     exit 0
   fi
-else 
+else
   printf "${bold}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
   exit 0
 fi
