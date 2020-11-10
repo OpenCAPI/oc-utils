@@ -16,13 +16,14 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=2.31
+tool_version=3.00
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
 # V2.2 test if binary image is a capi2 image and correct printf error
 # V2.3 adding 250SOC specific code
 # V2.31 repaired the 4 bytes mode for 9H3
+# V3.00 reordering the slot numbering
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -76,8 +77,13 @@ function usage() {
 # Parse any options given on the command line
 while getopts ":C:fVhr" opt; do
   case ${opt} in
+# we kept C as option name to avoid changing existing scripts, but "C" now represents the slot number
+# when provided it will be converted temporarilly to a card relative position to maintain
+# compatibility
+# The ultimate goal is to switch to slot number everywhere in this script
       C)
       card=$OPTARG
+      paramcard=1
       ;;
       f)
       force=1
@@ -185,74 +191,124 @@ printf "\n${bold}Current date is ${normal}$(date)\n\n"
 
 # print table header
 printf "Following logs show last programming files (except if hardware or capi version has changed):\n"
-printf "${bold}%-20s %-30s %-29s %-20s %s${normal}\n" "#" "Card" "Flashed" "by" "Last Image"
+printf "${bold}%-7s %-35s %-29s %-20s %s${normal}\n" "#" "Card slot and name" "Flashed" "by"
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
+if [ -z "$allcards" ]; then
+	echo "No OpenCAPI cards found.\n"
+	exit 1
+fi
+
 allcards_array=($allcards)
 
 # print card information and flash history
 i=0;
-while read d ; do
-  p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
-  f=$(cat /var/ocxl/card$i)
-  while IFS='' read -r line || [[ -n $line ]]; do
-    if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
-      parse_info=($line)
-      board_vendor[$i]=${parse_info[1]}
-      fpga_type[$i]=${parse_info[2]}
-      flash_partition[$i]=${parse_info[3]}
-      flash_block[$i]=${parse_info[4]}
-      flash_interface[$i]=${parse_info[5]}
-      flash_secondary[$i]=${parse_info[6]}
-      printf "%-20s %-30s %-29s %-20s %s\n" "card$i:${allcards_array[$i]}" "${line:6:21}" "${f:0:29}" "${f:30:20}" "${f:51}"
-      echo ""
-    fi
-  done < "$package_root/oc-devices"
-  i=$[$i+1]
- done < <( lspci -d "1014":"062b" -s .1 )
+    slot_enum=""
+    delimiter="|"
 
+# Collecting informations from oc-devices file    
+while read d ; do
+	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
+	# translate the slot number string to a hexa number
+  	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
+	# build a slot_enum of all card numbers and use it in the test menu to test user input
+	if [ -z "$slot_enum" ]; then
+		slot_enum=$card_slot_hex
+	else
+		slot_enum=$slot_enum$delimiter$card_slot_hex
+	fi
+      
+	f=$(cat /var/ocxl/card$i)
+      	while IFS='' read -r line || [[ -n $line ]]; do
+	    	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
+		  	parse_info=($line)
+		  	board_vendor[$i]=${parse_info[1]}
+		  	fpga_manuf[$i]=${parse_info[2]}
+		  	flash_partition[$i]=${parse_info[3]}
+		  	flash_block[$i]=${parse_info[4]}
+		  	flash_interface[$i]=${parse_info[5]}
+		  	flash_secondary[$i]=${parse_info[6]}
+		  	component_list=(${line:6:23})
+		  	bin_list=(${f:51})
+		  	printf "%-8s %-22s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+		  	printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
+		  	echo ""
+	    	fi
+      	done < "$package_root/oc-devices"
+      	i=$[$i+1]
+done < <( lspci -d "1014":"062b" -s .1 )
 
 printf "\n"
-# card is set via parameter since it is positive
-if (($card >= 0)); then
-  c=$((10#$card))
-  if (( "$c" >= "$n" )); then
-    printf "${bold}ERROR:${normal} Wrong card number ${card}\n"
-    exit 1
-  fi
+# card is set via parameter since it is positive (otherwise default to -1)
+# $card parameter when provided needs to be the slot number
+# we translate it to card position in the old numbering way (eg: 0 to n-1)
+if [ ! -z $paramcard ]; then
+	# Assign C to 4 digits hexa
+#	card4=`printf "%04x" $card`
+	card4=$(printf '%04x' "0x${card}")
+	echo "Slot is: $card4"
+	# search for card4 occurence and get line number in list of slots
+	ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+	
+	if [ -z $ln ]; then
+		echo "Requested slot $card4 can't be found among :"
+		echo $allcards
+		exit 1
+	else
+		ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+		# echo "Corresponding slot is found at position: $ln"
+		# Calculate the position number from line number to use script in the old way
+		c=$(($ln - 1))
+		#echo Card is: card$c
+	fi
 else
 # prompt card to flash to
-  while true; do
-    read -p "Which card do you want to flash? [0-$(($n - 1))] " c
-    if ! [[ $c =~ ^[0-9]+$ ]]; then
-      printf "${bold}ERROR:${normal} Invalid input\n"
-    else
-      c=$((10#$c))
-      if (( "$c" >= "$n" )); then
-        printf "${bold}ERROR:${normal} Wrong card number\n"
-        exit 1
-      else
-        break
-      fi
-    fi
-  done
+#  while true; do
+#    read -p "Which card do you want to flash? [0-$(($n - 1))] " c
+#    if ! [[ $c =~ ^[0-9]+$ ]]; then
+#      printf "${bold}ERROR:${normal} Invalid input\n"
+#    else
+#      c=$((10#$c))
+#      if (( "$c" >= "$n" )); then
+#        printf "${bold}ERROR:${normal} Wrong card number\n"
+#        exit 1
+#      else
+#        break
+#      fi
+#    fio
+#  done
+
+    # prompt card until input is in list of available slots
+    while ! [[ "$c" =~ ^($slot_enum)$ ]]
+    do
+        echo -e "Which card number do you want to flash? [$slot_enum]: \c" | sed 's/|/-/g'
+        read -r c
+     done
+    printf "\n"
+
+    card4=$(printf '%04x' "0x${c}")
+    echo "Slot is: $card4"
+    # search for card4 occurence and get line number in list of slots
+    ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+    c=$(($ln - 1))
+
 fi
 
 printf "\n"
 
 # check file type
 FILE_EXT=${1##*.}
-if [[ ${fpga_type[$c]} == "Altera" ]]; then
+if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   if [[ $FILE_EXT != "rbf" ]]; then
     printf "${bold}ERROR: ${normal}Wrong file extension: .rbf must be used for boards with Altera FPGA\n"
     exit 0
   fi
-elif [[ ${fpga_type[$c]} == "Xilinx" ]]; then
+elif [[ ${fpga_manuf[$c]} == "Xilinx" ]]; then
   if [[ $FILE_EXT != "bin" ]]; then
     printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
     exit 0
   fi
-else 
+else
   printf "${bold}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
   exit 0
 fi
@@ -329,19 +385,19 @@ printf "\n"
 
 # update flash history file
 if [ $flash_type == "SPIx8" ]; then
-  printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
+  	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
 else
-  printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
+  	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
 fi
 # Check if lowlevel flash utility is existing and executable
 if [ ! -x $package_root/oc-flash ]; then
-  printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
-  exit 1
+    	printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
+    	exit 1
 fi
 
 # Reset to card/flash registers to known state (factory) 
 if [ "$reset_factory" -eq 1 ]; then
-  oc-reset $c factory "Preparing card for flashing"
+      	oc-reset $c factory "Preparing card for flashing"
 fi
 
 trap 'kill -TERM $PID; perst_factory $c' TERM INT
@@ -349,12 +405,12 @@ trap 'kill -TERM $PID; perst_factory $c' TERM INT
 bdf=`echo ${allcards_array[$c]}`
 #echo $bdf
 if [ $flash_type == "SPIx8" ]; then
-# SPIx8 needs two file inputs (primary/secondary)
-#  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
-# until multiboot is enabled, force writing to 0x0
-   $package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0 
+	# SPIx8 needs two file inputs (primary/secondary)
+	#  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
+	# until multiboot is enabled, force writing to 0x0
+	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
 else
-  $package_root/oc-flash  --image_file1 $1 --devicebdf $bdf --startaddr 0x0
+	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
 
 PID=$!
@@ -363,8 +419,8 @@ trap - TERM INT
 wait $PID
 RC=$?
 if [ $RC -eq 0 ]; then
-#  reload card only if Flashing was good, TBD
-  printf "Auto reload the image from flash:\n"
-  #./oc-reload.sh -C ${allcards_array[$c]}
-  source $package_root/oc-reload.sh -C ${allcards_array[$c]}
+	#  reload card only if Flashing was good, TBD
+      	printf "Auto reload the image from flash:\n"
+     	#./oc-reload.sh -C ${allcards_array[$c]}
+      	source $package_root/oc-reload.sh -C ${allcards_array[$c]}
 fi
