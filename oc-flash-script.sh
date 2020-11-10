@@ -230,7 +230,7 @@ while read d ; do
 		  	flash_secondary[$i]=${parse_info[6]}
 		  	component_list=(${line:6:23})
 		  	bin_list=(${f:51})
-		  	printf "%-8s %-35s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+		  	printf "%-8s %-22s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
 		  	printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
 		  	echo ""
 	    	fi
@@ -410,7 +410,7 @@ if [ $flash_type == "SPIx8" ]; then
 	# until multiboot is enabled, force writing to 0x0
 	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
 else
-	$package_root/oc-flash  --image_file1 $1 --devicebdf $bdf --startaddr 0x0
+	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
 
 PID=$!
