@@ -140,4 +140,4 @@ else
         # Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
-reload_card $card factory "Image Reloading for OpenCAPI Adapter $card}"
+reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
