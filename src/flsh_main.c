@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
   
   if (subsys != 0x066A) {
 
-    printf("-------------------------------\n");
+    printf("----------------------------------\n");
     printf("QSPI master core setup: started\r");
     QSPI_setup();          // Reset and set up Quad SPI core
     if(verbose_flag) 
@@ -216,31 +216,31 @@ int main(int argc, char *argv[])
 
     printf("QSPI master core setup: completed\n");
 
-    printf("-------------------------------\n");
+    printf("----------------------------------\n");
     printf("Programming Primary SPI with primary bitstream:\n    %s\n",binfile);
     update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr, verbose_flag);
 
     if(dualspi_mode_flag) {
-      printf("-------------------------------\n");
+      printf("----------------------------------\n");
       printf("Programming Secondary SPI with secondary bitstream:\n    %s\n",binfile2);
       update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
     }
 
     printf("Finished Programming Sequence\n");
-    printf("-------------------------------\n");
+    printf("----------------------------------\n");
   
     Check_Accumulated_Errors();
 
   }
 //adding specific code for 250SOC card (subsystem_id = 0x066A)
   else {
-     printf("-------------------------------\n");
+     printf("----------------------------------\n");
      printf("Card with ZynqMP Detected\n");
      printf("Programming Flash with bitstream:\n    %s\n",binfile);
      //update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
      update_image_zynqmp(binfile,cfgbdf,start_addr);
      printf("Finished Programming Sequence\n");
-     printf("-------------------------------\n");
+     printf("----------------------------------\n");
   }
   
 
@@ -304,18 +304,21 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 
  int i,j;
  byte wdata[256], rdata[256], edat[256];
+ int percentage;
 
  //Initial Flash memory setup
  flash_setup(devsel);
  if(verbose_flag)
    read_flash_regs(devsel);
 
- printf("Entering Erase Segment\n");
+ //printf("Entering Erase Segment\n");
  st = set = time(NULL);
  cp = 1;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_64KB_sectors;i++) {
-   printf("Erasing Sectors    : %d %% of %d sectors   \r",(int)(i*100/num_64KB_sectors), num_64KB_sectors);
+   percentage = (int)(i*100/num_64KB_sectors);
+   if( (percentage %5) == 0 )
+      printf("Erasing Sectors    : %d %% of %d sectors   \r", percentage, num_64KB_sectors);
    fw_Write_Enable(devsel);
    fw_64KB_Sector_Erase(devsel, eaddress_secondary);
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
@@ -325,12 +328,13 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  eet = eet - set;
  printf("Erasing Sectors    : completed in   %d seconds           \n", (int)eet);
  
- printf("Entering Program Segment\n");
+ //printf("Entering Program Segment\n");
 
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
-	 if(i % 300000){
-	      	 printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);}
+   percentage = (int)(i*100/num_256B_pages);
+   if( (percentage %5) == 0 )
+       printf("Writing image code : %d %% of %d pages      \r", percentage, num_256B_pages);
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
      //edat = 0xFFFFFFFF;
@@ -346,13 +350,14 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  ept = ept - spt;
  printf("Writing Image code : completed in   %d seconds           \n", (int)ept);
 
- printf("Entering Read Segment\n");
+ //printf("Entering Read Segment\n");
 	
   int misc_pntcnt = 0;
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
-	 if(i % 30000){
-	      	 printf("Checking image code: %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);}
+   percentage = (int)(i*100/num_256B_pages);
+   if( (percentage %5) == 0 )
+       printf("Checking image code: %d %% of %d pages      \r", percentage, num_256B_pages);
    fr_Read(devsel, raddress_secondary, 256, rdata);
    raddress_secondary = raddress_secondary + 256;
    dif = read(BIN,&edat,256);
@@ -370,7 +375,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  printf("Checking Image code: completed in   %d seconds           \n", (int)evt);
  
  et = et - st;
- printf("Total Time to write the new Image: %d seconds           \n", (int)et);
+ printf("Total Time to write the new Image:  %d seconds           \n", (int)et);
  printf("\n");
 
  close(BIN);
