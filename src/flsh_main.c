@@ -304,7 +304,8 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 
  int i,j;
  byte wdata[256], rdata[256], edat[256];
- int percentage;
+ int percentage = 0;
+ int prev_percentage = 1;
 
  //Initial Flash memory setup
  flash_setup(devsel);
@@ -317,12 +318,13 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_64KB_sectors;i++) {
    percentage = (int)(i*100/num_64KB_sectors);
-   if( (percentage %5) == 0 )
+   if( ((percentage %5) == 0) && (prev_percentage != percentage))
       printf("Erasing Sectors    : %d %% of %d sectors   \r", percentage, num_64KB_sectors);
    fw_Write_Enable(devsel);
    fw_64KB_Sector_Erase(devsel, eaddress_secondary);
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
    eaddress_secondary = eaddress_secondary + 65536;
+   prev_percentage = percentage;
  }
  eet = spt = time(NULL);
  eet = eet - set;
@@ -333,7 +335,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    percentage = (int)(i*100/num_256B_pages);
-   if( (percentage %5) == 0 )
+   if( ((percentage %5) == 0) && (prev_percentage != percentage))
        printf("Writing image code : %d %% of %d pages      \r", percentage, num_256B_pages);
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
@@ -345,6 +347,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
    //printf("program checkpoint 2\n");
    paddress_secondary = paddress_secondary + 256;
+   prev_percentage = percentage;
  }
  ept = svt = time(NULL); 
  ept = ept - spt;
@@ -356,10 +359,11 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    percentage = (int)(i*100/num_256B_pages);
-   if( (percentage %5) == 0 )
+   if( ((percentage %5) == 0) && (prev_percentage != percentage))
        printf("Checking image code: %d %% of %d pages      \r", percentage, num_256B_pages);
    fr_Read(devsel, raddress_secondary, 256, rdata);
    raddress_secondary = raddress_secondary + 256;
+   prev_percentage = percentage;
    dif = read(BIN,&edat,256);
    if (!(dif)) {
      //edat = 0xFFFFFFFF;
