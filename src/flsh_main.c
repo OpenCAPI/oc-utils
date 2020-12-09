@@ -473,7 +473,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
        printf("Writing image code : %d %% of %d pages      \r", percentage , num_256B_pages);}
      prev_percentage = percentage;
    } else {
-     printf("Wtg for card acknowledgement (can take up to a minute!) \r");
+     printf("Waiting for card acknowledgement (can take up to a minute!) \r");
    }
    ack_status = axi_read_zynq(FA_QSPI, ack_addr, FA_EXP_OFF, FA_EXP_0123, "");
 
