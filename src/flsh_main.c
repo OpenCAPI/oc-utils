@@ -452,6 +452,8 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
  u32 ack_status; 
 
  u32 ack_addr;
+ int percentage = 0;
+ int prev_percentage = 1;
 
  //printf("reseting file pointer....\n");
  set = time(NULL);
@@ -466,9 +468,12 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
  lseek(BIN, 0, SEEK_SET);   // Reset to beginning of file
  for(i=0;i<num_256B_pages;i++) {
    if (i > 1){
-	   if(i % 1000){
-       printf("Writing image code : %d %% of %d pages      \r",(int)(i*100/num_256B_pages), num_256B_pages);}
-
+     percentage = (int)(i*100/num_256B_pages);
+     if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
+       printf("Writing image code : %d %% of %d pages      \r", percentage , num_256B_pages);}
+     prev_percentage = percentage;
+   } else {
+     printf("Wtg for card acknowledgement (can take up to a minute!) \r");
    }
    ack_status = axi_read_zynq(FA_QSPI, ack_addr, FA_EXP_OFF, FA_EXP_0123, "");
 
