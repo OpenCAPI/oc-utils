@@ -28,6 +28,6 @@ while read d ; do
     fi
   done < "$package_root/oc-devices"
   i=$[$i+1]
- done < <( lspci -d "1014":"062b" -s .1 )
+ done < <( /usr/sbin/lspci -d "1014":"062b" -s .1 )
 
 
