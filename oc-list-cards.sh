@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#check for lspci
+lspci >/dev/null 2>&1
+[ $? -ne 0 ] && printf "lspci not found. Please make sure it is installend and can be found in the PATH environment variable.\n" >&2 && exit 1
 
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
 package_root=$(dirname $package_root)
@@ -28,6 +31,4 @@ while read d ; do
     fi
   done < "$package_root/oc-devices"
   i=$[$i+1]
- done < <( /usr/sbin/lspci -d "1014":"062b" -s .1 )
-
-
+done < <( lspci -d "1014":"062b" -s .1 )
