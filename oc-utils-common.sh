@@ -106,9 +106,15 @@ function reload_card() {
 
 # subsys=$(lspci -s `cat /sys/bus/pci/slots/JP91NVB1/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
   subsys=$(lspci -s `cat /sys/bus/pci/slots/$slot/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
-# adding specific code for 250SOC card (subsystem_id = 0x066A)
-  if [ $subsys == "066a" ]
+# adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
+  if [ $subsys == "066a" ] || [ $subsys == "060d" ]
   then
+    # Unbinding to prevent driver to access the card before power down
+    # TO DO : need to look for all existing /sys/bus/pci/slots/$slot/address`.X entries
+    # for the time beiing we consider only 2 entries as implemented in https://github.com/OpenCAPI/OpenCAPI3.0_Client_RefDesign/
+    echo  `cat /sys/bus/pci/slots/$slot/address`.0 > /sys/bus/pci/drivers/ocxl/unbind
+    echo  `cat /sys/bus/pci/slots/$slot/address`.1 > /sys/bus/pci/drivers/ocxl/unbind
+    
     setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 634.B=11
     setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 630.L=00020000
   fi
