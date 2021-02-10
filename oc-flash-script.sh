@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2016, 2020 International Business Machines
+# Copyright 2016, 2021 International Business Machines
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=3.00
+tool_version=9.99
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
@@ -24,6 +24,7 @@ tool_version=3.00
 # V2.3 adding 250SOC specific code
 # V2.31 repaired the 4 bytes mode for 9H3
 # V3.00 reordering the slot numbering
+# V4.00 integrating the Partial reconfiguration (UNDER TEST)
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -66,7 +67,7 @@ function usage() {
   echo "    <path-to-bin-file>"
   echo "    <path-to-secondary-bin-file> (Only for SPIx8 device)"
   echo
-  echo "Utility to flash/write bitstreams to CAPI FPGA cards."
+  echo "Utility to flash/write bitstreams to OpenCAPI FPGA cards."
   echo "Please ensure that you are using the right bitstream data."
   echo "Using non-functional bitstream data or aborting the process"
   echo "can leave your card in a state where a hardware debugger is"
@@ -297,6 +298,7 @@ fi
 printf "\n"
 
 # check file type
+PR_mode=0
 FILE_EXT=${1##*.}
 if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   if [[ $FILE_EXT != "rbf" ]]; then
@@ -305,8 +307,17 @@ if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   fi
 elif [[ ${fpga_manuf[$c]} == "Xilinx" ]]; then
   if [[ $FILE_EXT != "bin" ]]; then
-    printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
-    exit 0
+    if [[ $FILE_EXT == "bit" ]]; then
+      printf "==========================================================\n"
+      printf "Partial Reconfiguration mode detected.\n"
+      printf "  It is mandatory to decouple the logic before programming\n"
+      printf "  ./oc-accel/software/tools/snap_poke 0x10 0x2 -C4\n"
+      printf "==========================================================\n"
+      PR_mode=1
+    else
+      printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
+      exit 0
+    fi
   fi
 else
   printf "${bold}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
@@ -334,11 +345,16 @@ fi
 if [ -z "$flash_type" ]; then
   flash_type="BPIx16" #If it is not listed in oc-device file, use default value
 fi
+if [ $PR_mode == 1 ]; then
+  flash_type="PR_SPIx8" #if PR mode then overide the flash_type setting to consider it as a 
+fi
 
 # Deal with the second argument
 if [ $flash_type == "SPIx8" ]; then
     if [ $# -eq 1 ]; then
       printf "${bold}ERROR:${normal} Input argument missing. The selected device is SPIx8 and needs both primary and secondary bin files\n"
+      bdf=`echo ${allcards_array[$c]}`
+      echo $bdf
       usage
       exit 1
     fi
@@ -419,8 +435,16 @@ trap - TERM INT
 wait $PID
 RC=$?
 if [ $RC -eq 0 ]; then
-	#  reload card only if Flashing was good, TBD
-      	printf "Auto reload the image from flash:\n"
-     	#./oc-reload.sh -C ${allcards_array[$c]}
-      	source $package_root/oc-reload.sh -C ${allcards_array[$c]}
+	if [ $PR_mode == 0 ]; then
+		#  reload card only if Flashing was good, TBD
+      		printf "Auto reload the image from flash:\n"
+     		#./oc-reload.sh -C ${allcards_array[$c]}
+      		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
+	else
+		#  In PR mode, remove the decoupling before resetting the card
+                printf "==========================================================n"
+      		printf "PR case: ./oc-accel/software/tools/snap_poke 0x10 0x0 -C4\n"
+      		printf "  then : sudo oc-reset\n"
+                printf "=========================================================\n"
+	fi
 fi

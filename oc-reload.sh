@@ -41,6 +41,7 @@ function usage() {
   echo "Please notify other users who you work with them on the same server."
   echo
 }
+
 # Select function for FPGA Cards Selection
 function select_cards() {
     # print current date on server for comparison

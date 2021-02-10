@@ -184,5 +184,10 @@ void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary);
 
 void Check_Accumulated_Errors(void);  // Check Global error flag to determine if test passed or failed
 
+int reload_image(char image_location[], char cfgbdf[]);
+void reset_ICAP();
+u32 read_ICAP_wfifo_size();
+void write_ICAP_bitstream_word(u32 wdata);
+u32 wait_ICAP_write_done();
 
 #endif
