@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
       dualspi_mode_flag = 0;
   }
 //adding specific code for Partial reconfiguration (partial bit file provided)
-  char *bit_file_extension = "_partial.bit";
+  char *bit_file_extension = "_partial.bin";
   int PR_mode = 0;
   if (strstr(binfile, bit_file_extension)){
       dualspi_mode_flag = 0;
@@ -227,8 +227,8 @@ int main(int argc, char *argv[])
   u32 wdata, wdatatmp, rdata, burst_size;
   u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
 
-  // Working on the primary bin file
-  printf("Opening bit file: %s\n", binfile);
+  // Working on the partial bin file
+  printf("Opening PR bin file: %s\n", binfile);
   if ((BIN = open(binfile, O_RDONLY)) < 0) {
     printf("ERROR: Can not open %s\n",binfile);
     exit(-1);
@@ -240,14 +240,16 @@ int main(int argc, char *argv[])
     fsize = tempstat.st_size;
   }
 
-  num_package_icap = fsize/4 + (fsize % 4 != 0);
+  num_package_icap = fsize/4 + (fsize % 4 != 0); //reading 332b words
   rdata = 0;
   while (rdata != SR_ICAPEn_EOS) {
     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+    printf("Waiting for ICAP EOS set \e[1A\n");
   }
-  printf("ICAP EOS done.\n");
+  printf("ICAP EOS done.            \n");
   if(verbose_flag) 
-      read_QSPI_regs();
+      printf(">> DBG << :DISABLED read QSPI since removed from the design\n");
+      //read_QSPI_regs();
 
   read_ICAP_regs();
 
@@ -258,9 +260,9 @@ int main(int argc, char *argv[])
   printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
   printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n",num_burst, icap_burst_size, num_package_lastburst);
   for(i=0;i<num_burst;i++) {
-    if (i % 100 == 0 ) {
+    //if (i % 100 == 0 ) {
       printf("Working on burst: %d of %d\e[1A\n.",i,num_burst);
-    }
+    //}
     for (j=0;j<icap_burst_size;j++) {
       dif = read(BIN,&wdatatmp,4);
       wdata = ((wdatatmp>>24)&0xff) | ((wdatatmp<<8)&0xff0000) | ((wdatatmp>>8)&0xff00) | ((wdatatmp<<24)&0xff000000);
