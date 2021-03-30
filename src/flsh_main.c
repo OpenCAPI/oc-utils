@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
   }
 
   rdata = axi_read(FA_ICAP, FA_ICAP_RF , FA_EXP_OFF, FA_EXP_0123, "ICAP: read FIFO");
-  printf("Read IDCODE from AXI_HWICAP is h%x                             \n", rdata);
+  printf("Read IDCODE from AXI_HWICAP is 0x%x                             \n", rdata);
  // End of IDCODE read
   printf("Sleep 10 sec\n");
   sleep(10);
