@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
     fsize = tempstat.st_size;
   }
 
-  num_package_icap = fsize/4 + (fsize % 4 != 0); //reading 332b words
+  num_package_icap = fsize/4 + (fsize % 4 != 0); //reading 32b words
   rdata = 0;
   while (rdata != SR_ICAPEn_EOS) {
     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
@@ -252,6 +252,62 @@ int main(int argc, char *argv[])
       //read_QSPI_regs();
 
   read_ICAP_regs();
+
+//==============================================
+  printf("Read IDCODE from AXI_HWICAP \n");
+
+
+  rdata = 0;
+  while (rdata != SR_ICAPEn_EOS)  {
+     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+     printf("Waiting for ICAP SR = 5 \e[1A\n");
+  }
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x000000BB;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x11220044;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xAA995566;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x28018001;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  // flush
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
+  rdata = 0;
+  while (rdata != 0x0000003F) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_WFV  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read WFV (monitor ICAPEn)");
+    printf("waiting for WFV - h%x\t.", rdata);
+  }
+
+  axi_write(FA_ICAP, FA_ICAP_SZ, FA_EXP_OFF, FA_EXP_0123, SZ_Read_One_Word, "ICAP: write SZ ");
+  rdata = 1;
+  while (rdata != CR_Write_clear) {
+     rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+     printf("Waiting for ICAP CR = 0 (actual =  h%x)\e[1A\n", rdata);
+  }
+
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Read_cmd, "ICAP: Read cmd ");
+  rdata = 0;
+  while (rdata != RFO_wait_rd_done) {
+     rdata = axi_read(FA_ICAP, FA_ICAP_RFO  , FA_EXP_OFF, FA_EXP_0123, "ICAP: poll RFO until read completed");
+     printf("Waiting for ICAP RFO = 1 \e[1A           \n");
+  }
+
+  rdata = axi_read(FA_ICAP, FA_ICAP_RF , FA_EXP_OFF, FA_EXP_0123, "ICAP: read FIFO");
+  printf("Read IDCODE from AXI_HWICAP is h%x                             \n", rdata);
+ // End of IDCODE read
+  printf("Sleep 10 sec\n");
+  sleep(10);
+//==============================================
 
   icap_burst_size = axi_read(FA_ICAP, FA_ICAP_WFV , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   num_burst = num_package_icap / icap_burst_size;
