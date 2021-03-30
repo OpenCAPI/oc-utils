@@ -226,6 +226,7 @@ int main(int argc, char *argv[])
   int num_package_icap, icap_burst_size, num_burst, num_package_lastburst, dif;
   u32 wdata, wdatatmp, rdata, burst_size;
   u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
+  u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
 
   // Working on the partial bin file
   printf("Opening PR bin file: %s\n", binfile);
