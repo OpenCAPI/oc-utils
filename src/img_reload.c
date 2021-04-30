@@ -15,7 +15,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -23,18 +22,12 @@
 #include <errno.h>
 #include <math.h>
 #include <getopt.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 #include "flsh_common_defs.h"
 #include "flsh_common_funcs.h"
 #include "flsh_global_vars.h"
 
-
-//#include "svdpi.h"
-
-#ifdef USE_SIM_TO_TEST
-//  #include "svdpi.h"
-//  extern void CFG_NOP( const char*);              
-//  extern void CFG_NOP2(const char*, int, int, int*);              
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -45,20 +38,27 @@ int main(int argc, char *argv[])
     /* These options set a flag. */
     {"verbose", no_argument,       &verbose_flag, 1},
     {"brief",   no_argument,       &verbose_flag, 0},
-    {"image_location",  required_argument, 0, 'a'},
+    {"singlespi",    no_argument,  &dualspi_mode_flag, 0},
+    {"dualspi",      no_argument,  &dualspi_mode_flag, 1},
+    //{"image_file1",  required_argument, 0, 'a'},
+    //{"image_file2",  required_argument, 0, 'b'},
     {"devicebdf",    required_argument, 0, 'c'},
+    {"startaddr",    required_argument, 0, 'd'},
           {0, 0, 0, 0}
   };
 
-  char image_location[1024];
+  char binfile[1024];
+  char binfile2[1024];
   char cfgbdf[1024];
   char cfg_file[1024];
-  int CFG;  
+  int CFG;
+  int start_addr=0;
+  char temp_addr[256];
 
   while(1) {
       int option_index = 0;
       int c;
-      c = getopt_long (argc, argv, "a:b:c:",
+      c = getopt_long (argc, argv, "c:d:",
                        long_options, &option_index);
 
       /* Detect the end of the options. */
@@ -78,15 +78,28 @@ int main(int argc, char *argv[])
           break;
 
         case 'a':
-          printf("Primary Bitstream: %s\n", optarg);
-          strcpy(image_location,optarg);
+          if(verbose_flag)
+            printf(" Primary Bitstream: %s\n", optarg);
+          strcpy(binfile,optarg);
+          break;
+
+        case 'b':
+          if(verbose_flag)
+            printf(" Secondary Bitstream: %s\n", optarg);
+          strcpy(binfile2,optarg);
           break;
 
         case 'c':
-          printf("Target Device: %s\n", optarg);
           strcpy(cfgbdf,optarg);
+          if(verbose_flag)
+	    printf(" Target Device: %s\n", cfgbdf);
           break;
 
+	case 'd':
+	  memcpy(temp_addr,&optarg[2],8);
+	  start_addr = (int)strtol(temp_addr,NULL,16);
+          if(verbose_flag)
+	    printf(" Start Address (same address for SPIx8 on both parts): %d\n", start_addr);
         case '?':
           /* getopt_long already printed an error message. */
           break;
@@ -94,56 +107,18 @@ int main(int argc, char *argv[])
         default:
           abort ();
         }
-  }
-  if(verbose_flag) {
-    printf("Verbose in use\n");
-  } else {
-   printf("Verbose not in use\n");
-  }
-  if(strcmp(image_location,"user") == 0) {
-    printf("Loading 'user' image\n");
-  }
-  else if(strcmp(image_location,"factory") == 0) {
-     printf("Loading 'factory' image\n");
-  }
-  else {
-    printf("ERROR: Must supply factory or user as image to load, provided %s!\n",image_location);
-    exit(-1);
-  }
-  if(cfgbdf[0] == '\0') {
-    printf("ERROR: Must supply target device\n");
-    exit(-1);
-  } 
+    }
 
-  printf("Hello world - TRC_CONFIG = %d, TRC_AXI = %d, TRC_FLASH = %d, TRC_FLASH_CMD = %d\n", TRC_CONFIG, TRC_AXI, TRC_FLASH, TRC_FLASH_CMD);
+  if(verbose_flag)
+    printf("Registers value: TRC_CONFIG = %d, TRC_AXI = %d, TRC_FLASH = %d, TRC_FLASH_CMD = %d\n", TRC_CONFIG, TRC_AXI, TRC_FLASH, TRC_FLASH_CMD);
 
   u32 temp;
   int vendor,device, subsys;
+  int BIN,i, j;
   strcpy(cfg_file,"/sys/bus/pci/devices/");
-  strcat(cfg_file,"0006:00:00.0");
+  strcat(cfg_file,cfgbdf);
   strcat(cfg_file,"/config");
-  if ((CFG = open(cfg_file, O_RDWR)) < 0) {
-    printf("Can not open %s\n",cfg_file);
-    exit(-1);
-  }
 
-  //TODO/FIXME: passing this on to global cfg descriptor
-  if ((CFG_FD = open(cfg_file, O_RDWR)) < 0) {
-    printf("Can not open %s\n",cfg_file);
-    exit(-1);
-  }
-  temp = config_read(CFG_DEVID,"Read device id of card");
-  vendor = temp & 0xFFFF;
-  device = (temp >> 16) & 0xFFFF;
-  printf("DEVICE: %x VENDOR: %x\n",device,vendor);
-  if ( (vendor != 0x1014) || ( device != 0x062B)) {
-    printf("This card shouldn't be flashed with this script\n");
-    //exit(-1);
-  }
-  else {
-    printf("This card has the flash controller!\n");
-  }
-/*
   if ((CFG = open(cfg_file, O_RDWR)) < 0) {
     printf("Can not open %s\n",cfg_file);
     exit(-1);
@@ -155,109 +130,75 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  lseek(CFG, 0, SEEK_SET);
-  read(CFG, &temp, 4);
-  printf("Device ID: %04X\n", device);
-  printf("Vendor ID: %04X\n", vendor);
-
-  lseek(CFG, 44, SEEK_SET);
-  read(CFG, &temp, 4);
-  subsys = (temp >> 16) & 0xFFFF;
-*/
-
-  TRC_FLASH_CMD = TRC_ON;
-  TRC_AXI = TRC_ON;
-  TRC_CONFIG = TRC_ON;
-
-  printf("Beginning qspi master core setup\n");
-
+  TRC_FLASH_CMD = TRC_OFF;
   TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
-  printf("Entering Image reload segment\n");
+  temp = config_read(CFG_SUBSYS,"Read subsys id of card");
+  subsys = (temp >> 16) & 0xFFFF;
+  //printf("SUBSYS: %x \n",subsys);
 
-  reload_image(image_location,cfgbdf);
+  if(verbose_flag) 
+    printf("Verbose in use\n");
 
-  printf("Finished Image reload segment\n");
+//-----------------------
+//-----------------------
+    //adding specific code for Partial reconfiguration
+
+  u32 wdata, wdatatmp, rdata, burst_size;
+  u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
+  u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
+
+  rdata = 0;
+  if(verbose_flag) 
+     printf("Waiting for ICAP EOS set \e[1A\n");
+  while (rdata != SR_ICAPEn_EOS) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+  }
+  if(verbose_flag) 
+     printf("ICAP EOS done.\n");
+
+
+  if(verbose_flag)  {
+      read_QSPI_regs();
+     read_ICAP_regs();
+  }
+//==============================================
+// This sequence is using the reload writing to the HWICAP (and not the iprog_icap)
+  printf("\n----------------------------------\n");
+  printf("Reloading card in slot %s\n", cfgbdf);
+
+  rdata = 0;
+  while ((u32)rdata != (u32)SR_ICAPEn_EOS)  {
+     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+     //printf("Waiting for ICAP SR = h%4x (read:%8x) \e[1A\n", SR_ICAPEn_EOS, rdata);
+  }
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xAA995566;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x30020001;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x00000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x30008001;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x0000000F;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  // flush
+  //printf("FLUSH START \n");
+  //we need to use a specific axi_write since once the write done, we cannot read anymore in ICAP registers
+  axi_write_no_check(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
+  //printf("FLUSH DONE \n");
+  //printf("\noc-reload from AXI_HWICAP DONE \n");
+ // End of oc-reload
+//==============================================
+
   
-  Check_Accumulated_Errors();
-
   return 0;  // Incisive simulator doesn't like anything other than 0 as return value from main() 
-}
-
-int reload_image(char image_location[1024], char cfgbdf[1024])
-{
-  int priv1,priv2;
-  int dat, dif;
-  int cp;
-  int CFG;
-
-  int fifo_room;
-  int address;
-
-  char cfg_file[256];
-
-  int  print_cnt = 0;
-  u32 bitstream_word;
-
-  strcpy(cfg_file, "/sys/bus/pci/devices/");
-  strcat(cfg_file, cfgbdf);
-  strcat(cfg_file, "/config");
-
-  
-  reset_ICAP();
-  read_ICAP_regs();
-  fifo_room = read_ICAP_wfifo_size();
-  if(fifo_room >= 8) {
-    printf("Sufficient room for entire reload bitstream: %d\n",fifo_room);
-  }
-  else {
-    printf("ERROR: Too few entries (%d) to hold reload bitstream\n",fifo_room);
-    exit(-1);
-  }
-  if(strcmp(image_location,"factory") == 0) {
-    address = 0x00000000;
-  } else {
-    address = 0x00100000;//FIXME/TODO: user address will change per card. 
-  }
-
-  bitstream_word = 0xFFFFFFFF;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  //bitstream_word = 0x5599AA66;
-  bitstream_word = 0xAA995566;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  //bitstream_word = 0x04000000;
-  bitstream_word = 0x20000000;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  //bitstream_word = 0x0C400080;
-  bitstream_word = 0x30020001;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  bitstream_word = address;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  //bitstream_word = 0x0C000180;
-  bitstream_word = 0x30008001;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  //bitstream_word = 0x000000F0;
-  bitstream_word = 0x0000000F;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-  //bitstream_word = 0x04000000;
-  bitstream_word = 0x20000000;
-  write_ICAP_bitstream_word(bitstream_word);
-  wait_ICAP_write_done();
-
-  read_ICAP_regs(); 
-
-/*
- close(CFG);
- close(CFG_FD);
-*/
- return 0;
 }
 

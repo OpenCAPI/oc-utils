@@ -45,7 +45,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr);
 
 int main(int argc, char *argv[])
 {
-  static int verbose_flag = 1;
+  static int verbose_flag = 0;
   static int dualspi_mode_flag = 1; //default to assume x8 spi programming/loading
   static struct option long_options[] =
   {
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  TRC_FLASH_CMD = TRC_ON;
+  TRC_FLASH_CMD = TRC_OFF;
   TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
@@ -227,6 +227,8 @@ int main(int argc, char *argv[])
   u32 wdata, wdatatmp, rdata, burst_size;
   u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
   u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
+  int percentage = 0;
+  int prev_percentage = 1;
 
   // Working on the partial bin file
   printf("Opening PR bin file: %s\n", binfile);
@@ -248,13 +250,13 @@ int main(int argc, char *argv[])
     printf("Waiting for ICAP EOS set \e[1A\n");
   }
   printf("ICAP EOS done.            \n");
-  if(verbose_flag) 
-      printf(">> DBG << :DISABLED read QSPI since removed from the design\n");
-      //read_QSPI_regs();
-
-  read_ICAP_regs();
+  if(verbose_flag) {
+      read_QSPI_regs();
+      read_ICAP_regs();
+  }
 
 //==============================================
+/*
   printf("Read IDCODE from AXI_HWICAP \n");
 
 
@@ -309,7 +311,7 @@ int main(int argc, char *argv[])
   printf("Sleep 10 sec\n");
   sleep(10);
 //==============================================
-
+*/
   icap_burst_size = axi_read(FA_ICAP, FA_ICAP_WFV , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   num_burst = num_package_icap / icap_burst_size;
   num_package_lastburst = num_package_icap - num_burst * icap_burst_size;
@@ -317,9 +319,12 @@ int main(int argc, char *argv[])
   printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
   printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n",num_burst, icap_burst_size, num_package_lastburst);
   for(i=0;i<num_burst;i++) {
-    //if (i % 100 == 0 ) {
-      printf("Working on burst: %d of %d\e[1A\n.",i,num_burst);
-    //}
+    percentage = (int)(i*100/num_burst);
+    //if( ((percentage %5) == 0) && (prev_percentage != percentage))
+    //if( (percentage %5) == 0 ) {
+    if( (i %500) == 0 ) {
+         printf("Writing partial image code : %d %% of %d pages                \r", percentage, num_burst);
+    } 
     for (j=0;j<icap_burst_size;j++) {
       dif = read(BIN,&wdatatmp,4);
       wdata = ((wdatatmp>>24)&0xff) | ((wdatatmp<<8)&0xff0000) | ((wdatatmp>>8)&0xff00) | ((wdatatmp<<24)&0xff000000);
@@ -342,8 +347,9 @@ int main(int argc, char *argv[])
     while (rdata != SR_ICAPEn_EOS) {
       rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
     }
+    prev_percentage = percentage;
   }
-  printf("Working on the last burst.\n");
+  //printf("Working on the last burst.\n");
   for (i=0;i<num_package_lastburst;i++) {
     dif = read(BIN,&wdatatmp,4);
     wdata = ((wdatatmp>>24)&0xff) | ((wdatatmp<<8)&0xff0000) | ((wdatatmp>>8)&0xff00) | ((wdatatmp<<24)&0xff000000);

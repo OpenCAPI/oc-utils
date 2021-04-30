@@ -41,9 +41,7 @@ endif
 
 install_point=lib/oc-utils
 
- # 2 oc-reload coexists: Zhichao compiled oc-Zreload 
- # and script oc-reload.sh
-TARGETS=oc-flash oc-Zreload
+TARGETS=oc-flash oc-reload
 
 install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-reload.sh oc-list-cards.sh oc-devices
 
@@ -52,7 +50,7 @@ all: $(TARGETS)
 
 oc-flash: src/flsh_global_vars.c src/flsh_common_funcs.c src/flsh_main.c
 	$(CC) $(CFLAGS) $^ -o $@
-oc-Zreload: src/flsh_global_vars.c src/flsh_common_funcs.c src/img_reload.c
+oc-reload: src/flsh_global_vars.c src/flsh_common_funcs.c src/img_reload.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 .PHONY: install

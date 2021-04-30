@@ -56,6 +56,16 @@ char* axi_addr_as_str(                   // Convert slave address to register na
                         u32 axi_devsel   //   Need device select to know which slave is targeted
                       , u32 axi_addr);   //   Targeted address in slave 
 
+void  axi_write_no_check(            // Initiate a write operation on the AXI4-Lite bus BUT WITHOUT any checking/reading
+                 u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
+               , u32 axi_addr        //   Select target register within the selected core
+               , u32 exp_enab        //   Choose whether to use data expander
+               , u32 exp_dir         //   Determine expander direction
+               , u32 axi_wdata       //   Data written to AXI4-Lite slave
+               , char *s             //   Comment to be printed in trace message
+               );
+
+
 void  axi_write(                     // Initiate a write operation on the AXI4-Lite bus 
                  u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
                , u32 axi_addr        //   Select target register within the selected core

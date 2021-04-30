@@ -311,17 +311,8 @@ if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   fi
 elif [[ ${fpga_manuf[$c]} == "Xilinx" ]]; then
   if [[ $FILE_EXT != "bin" ]]; then
-    #if [[ $FILE_EXT == "bit" ]]; then
-    #  printf "==========================================================\n"
-    #  printf "Partial Reconfiguration mode detected.\n"
-    #  printf "  It is mandatory to decouple the logic before programming\n"
-    #  printf "  ./oc-accel/software/tools/snap_poke 0x10 0x2 -C4\n"
-    #  printf "==========================================================\n"
-    #  PR_mode=1
-    #else
-      printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
-      exit 0
-    #fi
+    printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
+    exit 0
   fi
 else
   printf "${bold}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
@@ -333,11 +324,7 @@ if [ -z "$flash_address" ]; then
   flash_address=${flash_partition[$c]}
   if [[ $1 =~ "_partial" ]]
   then
-     printf "==========================================================\n"
      printf "Partial Reconfiguration mode detected.\n"
-     printf "  It is mandatory to decouple the logic before programming\n"
-     printf "  ./oc-accel/software/tools/snap_poke 0x10 0x2 -C4\n"
-     printf "==========================================================\n"
      PR_mode=1
   fi
   else if [[ $1 =~ "fw_" ]]
@@ -455,9 +442,6 @@ if [ $RC -eq 0 ]; then
       		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
 	else
 		#  In PR mode, remove the decoupling before resetting the card
-                printf "=========================================================\n"
-      		printf "PR case: ./oc-accel/software/tools/snap_poke 0x10 0x0 -C4\n"
-      		printf "  then : sudo oc-reset\n"
-                printf "=========================================================\n"
+		reset_card $bdf factory "Resetting OpenCAPI Adapter $bdf"
 	fi
 fi

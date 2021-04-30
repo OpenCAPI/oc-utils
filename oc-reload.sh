@@ -141,4 +141,6 @@ else
         # Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
-reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+ $package_root/oc-reload --devicebdf $card  --startaddr 0x0 "Image Reloading for OpenCAPI Adapter $card"
+ reset_card $card factory "Resetting OpenCAPI Adapter $card"
+
