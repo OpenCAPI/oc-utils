@@ -344,6 +344,7 @@ char* axi_addr_as_str(                   // Convert slave address to register na
 
 
 // --------------------------------------------------------------------------------------------------------
+// This write is used for the reload once the specific sequence has been written and before a reset. No more read can then be done.
 void axi_write_no_check(                     // Initiate a write operation on the AXI4-Lite bus
                 u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
               , u32 axi_addr        //   Select target register within the selected core
@@ -390,13 +391,11 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
   int saved_TRC_CONFIG;
   char s_err[1024];
   char s_devstat[1044];
- //int cnt ;
   snprintf(call_args, sizeof(call_args),
 	   "devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
 	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
 
   if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args);
-  //printf("trace    axi_write     %s\n", call_args);
 
   // Step 1: config_write to FLASH_DATA, then FLASH_ADDR initiating AXI write
   config_write(CFG_FLASH_DATA, axi_wdata, 4, "axi_write - step 1a: store write data into FLASH_DATA register");
@@ -404,17 +403,9 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
 
   // Step 2: config_read's to poll on Write Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
   saved_TRC_CONFIG = TRC_CONFIG;
-  //cnt = 15;
   do
   { read_FA = config_read(CFG_FLASH_ADDR, "axi_write - step  2: wait for Write Strobe to become 0 indicating AXI write is complete");
     TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
-    //if (cnt > 0) {
-	//cnt --;
-	//printf("-");
-    //} else {
-	//printf("DBG: Timeout axi_write - waiting  Write Strobe != 1\n");
-	//exit(-1);
-    //}
   } while ((read_FA & FA_WR) == FA_WR);    // Continue while Write Strobe is 1
   TRC_CONFIG = saved_TRC_CONFIG;   // Restore trace setting
 
@@ -433,6 +424,9 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
   }
 
   // Check device status signals
+  // set GlobalEOS to 1 with Partial Reconfiguration to remove "eos bit unset" error message
+  if((axi_devsel == FA_ICAP ) && (axi_addr == FA_ICAP_CR)) GlobalEOS = 1;
+
   snprintf(s_devstat, sizeof(s_devstat), "(axi_write): %s ", call_args);
   check_axi_status(read_FA, U32_ZERO, s_devstat);
 
@@ -463,7 +457,6 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
 	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
 
   if (TRC_AXI == TRC_ON) printf("trace    axi_read      %s\n", call_args);
-  //printf("trace    axi_read      %s\n", call_args);
 
   // Step 1: config_write to FLASH_ADDR initiating AXI read
   config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_RD, exp_enab, exp_dir), 4, "axi_read  - step 1: write to FLASH_ADDR to initiate AXI read");
@@ -473,7 +466,6 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
   do
   { read_FA = config_read(CFG_FLASH_ADDR, "axi_read  - step 2: wait for Read Strobe to become 0 indicating AXI read is complete");
     TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
-    //printf(". ");
   } while ((read_FA & FA_RD) == FA_RD);    // Continue while Read Strobe is 1
   TRC_CONFIG = saved_TRC_CONFIG;           // Restore trace setting
 
@@ -492,6 +484,9 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
   }
 
   // Check device status signals
+  // set GlobalEOS to 1 with Partial Reconfiguration to remove "eos bit unset" error message
+  if((axi_devsel == FA_ICAP ) && (axi_addr == FA_ICAP_CR)) GlobalEOS = 1;
+
   snprintf(s_devstat, sizeof(s_devstat), "(axi_read): %s ", call_args);
   check_axi_status(read_FA, U32_ZERO, s_devstat);
 
@@ -716,6 +711,77 @@ void read_ICAP_regs()    // Read and display all AXI readable registers in HWICA
   return;
 }
 
+
+// Read IDCODE certify the exact type of the FPGA
+void read_FPGA_IDCODE()
+{
+  u32 wdata, wdatatmp, rdata, burst_size;
+  u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
+  u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
+
+//==============================================
+
+  //printf("Read IDCODE from AXI_HWICAP                      \n");
+
+  rdata = 0;
+  while (rdata != SR_ICAPEn_EOS)  {
+     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+     //printf("Waiting for ICAP SR = 5 \e[1A\n");
+  }
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x000000BB;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x11220044;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xAA995566;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x28018001;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  // flush
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
+  rdata = 0;
+  while (rdata != 0x0000003F) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_WFV  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read WFV (monitor ICAPEn)");
+    //printf("waiting for WFV - h%x\t.", rdata);
+  }
+
+  axi_write(FA_ICAP, FA_ICAP_SZ, FA_EXP_OFF, FA_EXP_0123, SZ_Read_One_Word, "ICAP: write SZ ");
+  rdata = 1;
+  while (rdata != CR_Write_clear) {
+     rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+     //printf("Waiting for ICAP CR = 0 (actual =  h%x)\e[1A\n", rdata);
+  }
+
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Read_cmd, "ICAP: Read cmd ");
+  rdata = 0;
+  while (rdata != RFO_wait_rd_done) {
+     rdata = axi_read(FA_ICAP, FA_ICAP_RFO  , FA_EXP_OFF, FA_EXP_0123, "ICAP: poll RFO until read completed");
+     //printf("Waiting for ICAP RFO = 1 \e[1A           \n");
+  }
+
+  rdata = axi_read(FA_ICAP, FA_ICAP_RF , FA_EXP_OFF, FA_EXP_0123, "ICAP: read FIFO");
+
+  //find IDCODE of ultracsale in UG570 and of zync in UG1085
+  if      (rdata == 0x14b39093) printf("Read IDCODE from AXI_HWICAP is 0x%x = VU3P  (AD9V3) \n", rdata);
+  else if (rdata == 0x14b69093) printf("Read IDCODE from AXI_HWICAP is 0x%x = VU33P (AD9H3) \n", rdata);
+  else if (rdata == 0x14b79093) printf("Read IDCODE from AXI_HWICAP is 0x%x = VU33P (AD9H7) \n", rdata);
+  else if (rdata == 0x14758093) printf("Read IDCODE from AXI_HWICAP is 0x%x = ZU18EG (250SOC) \n", rdata);
+  else                         printf("Read IDCODE from AXI_HWICAP is 0x%x (see UG570 or UG1085 \n", rdata);
+
+ // End of IDCODE read
+//==============================================
+
+  return;
+}
 
 
 // --------------------------------------------------------------------------------------------------------

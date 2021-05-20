@@ -196,6 +196,7 @@ void Check_Accumulated_Errors(void);  // Check Global error flag to determine if
 
 int reload_image(char image_location[], char cfgbdf[]);
 void reset_ICAP();
+void read_FPGA_IDCODE();
 u32 read_ICAP_wfifo_size();
 void write_ICAP_bitstream_word(u32 wdata);
 u32 wait_ICAP_write_done();

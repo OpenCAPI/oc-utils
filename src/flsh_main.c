@@ -40,7 +40,6 @@
 
 extern void my_test();
 int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag);
-//int update_image_zynqmp(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr);
 int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr);
 
 int main(int argc, char *argv[])
@@ -205,22 +204,30 @@ int main(int argc, char *argv[])
     } 
   }
   
-//-----------------------
+//===============================================
+//====== SPECIFIC 250SOC CARD PROGRAMMING =======
+//===============================================
   if (subsys == 0x066A) {
 //adding specific code for 250SOC card (subsystem_id = 0x066A)
      printf("----------------------------------\n");
      printf("Card with ZynqMP Detected\n");
      printf("Programming Flash with bitstream:\n    %s\n",binfile);
-     //update_image_zynqmp(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
      update_image_zynqmp(binfile,cfgbdf,start_addr);
      printf("Finished Programming Sequence\n");
      printf("----------------------------------\n");
 
-//-----------------------
+
+//===============================================
+//===== PARTIAL RECONFIGURATION PROGRAMMING =====
+//=====   SUPPORTED CARDS :  AD9V3 - AD9H3 ======
+//===============================================
+
   } else { // if(subsys != 0x066A)
     if(PR_mode) {
     //adding specific code for Partial reconfiguration
-
+    // IMPORTANT //
+    // The first access to FA_ICAP will enable the decoupling  mode in the FPGA to isolate the dynamic code
+    // After the last PR programming instruction, a read to FA_QSPI will disable the decouple mode
   off_t fsize;
   struct stat tempstat;
   int num_package_icap, icap_burst_size, num_burst, num_package_lastburst, dif;
@@ -229,6 +236,7 @@ int main(int argc, char *argv[])
   u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
   int percentage = 0;
   int prev_percentage = 1;
+  time_t spt, ept;
 
   // Working on the partial bin file
   printf("Opening PR bin file: %s\n", binfile);
@@ -247,84 +255,35 @@ int main(int argc, char *argv[])
   rdata = 0;
   while (rdata != SR_ICAPEn_EOS) {
     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
-    printf("Waiting for ICAP EOS set \e[1A\n");
+    //printf("Waiting for ICAP EOS set \e[1A\n");
   }
-  printf("ICAP EOS done.            \n");
   if(verbose_flag) {
+      printf("ICAP EOS done.            \n");
       read_QSPI_regs();
       read_ICAP_regs();
+      read_FPGA_IDCODE();
   }
 
-//==============================================
-/*
-  printf("Read IDCODE from AXI_HWICAP \n");
-
-
-  rdata = 0;
-  while (rdata != SR_ICAPEn_EOS)  {
-     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
-     printf("Waiting for ICAP SR = 5 \e[1A\n");
-  }
-  wdata = 0xFFFFFFFF;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0x000000BB;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0x11220044;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0xFFFFFFFF;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0xAA995566;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0x20000000;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0x28018001;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  wdata = 0x20000000;
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
-  // flush
-  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
-  rdata = 0;
-  while (rdata != 0x0000003F) {
-    rdata = axi_read(FA_ICAP, FA_ICAP_WFV  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read WFV (monitor ICAPEn)");
-    printf("waiting for WFV - h%x\t.", rdata);
-  }
-
-  axi_write(FA_ICAP, FA_ICAP_SZ, FA_EXP_OFF, FA_EXP_0123, SZ_Read_One_Word, "ICAP: write SZ ");
-  rdata = 1;
-  while (rdata != CR_Write_clear) {
-     rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
-     printf("Waiting for ICAP CR = 0 (actual =  h%x)\e[1A\n", rdata);
-  }
-
-  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Read_cmd, "ICAP: Read cmd ");
-  rdata = 0;
-  while (rdata != RFO_wait_rd_done) {
-     rdata = axi_read(FA_ICAP, FA_ICAP_RFO  , FA_EXP_OFF, FA_EXP_0123, "ICAP: poll RFO until read completed");
-     printf("Waiting for ICAP RFO = 1 \e[1A           \n");
-  }
-
-  rdata = axi_read(FA_ICAP, FA_ICAP_RF , FA_EXP_OFF, FA_EXP_0123, "ICAP: read FIFO");
-  printf("Read IDCODE from AXI_HWICAP is 0x%x                             \n", rdata);
- // End of IDCODE read
-  printf("Sleep 10 sec\n");
-  sleep(10);
-//==============================================
-*/
   icap_burst_size = axi_read(FA_ICAP, FA_ICAP_WFV , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   num_burst = num_package_icap / icap_burst_size;
   num_package_lastburst = num_package_icap - num_burst * icap_burst_size;
 
-  printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
-  printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n",num_burst, icap_burst_size, num_package_lastburst);
+  if(verbose_flag) {
+      printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
+      printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n", 
+            num_burst, icap_burst_size, num_package_lastburst);
+  }
+
+  spt = time(NULL); 
+  int print_done = 0;
+
   for(i=0;i<num_burst;i++) {
     percentage = (int)(i*100/num_burst);
-    //if( ((percentage %5) == 0) && (prev_percentage != percentage))
-    //if( (percentage %5) == 0 ) {
-    if( (i %500) == 0 ) {
-         printf("Writing partial image code : %d %% of %d pages                \r", percentage, num_burst);
-    } 
+    // No idea wht the following condition doesn't work !!
+    //if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
+    if((percentage %5) == 0) {
+       printf("Writing partial image code : %d %% of %d pages                        \r", percentage, num_burst);
+    }
     for (j=0;j<icap_burst_size;j++) {
       dif = read(BIN,&wdatatmp,4);
       wdata = ((wdatatmp>>24)&0xff) | ((wdatatmp<<8)&0xff0000) | ((wdatatmp>>8)&0xff00) | ((wdatatmp<<24)&0xff000000);
@@ -338,6 +297,7 @@ int main(int argc, char *argv[])
         rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
       }
     }
+    // Flush the WR FIFO
     axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
     rdata = 1;
     while (rdata != CR_Write_clear) {
@@ -349,6 +309,7 @@ int main(int argc, char *argv[])
     }
     prev_percentage = percentage;
   }
+
   //printf("Working on the last burst.\n");
   for (i=0;i<num_package_lastburst;i++) {
     dif = read(BIN,&wdatatmp,4);
@@ -373,9 +334,21 @@ int main(int argc, char *argv[])
     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
   }
   close(BIN);
-  printf("Finished PR Progamming Sequence\n");
+  // The following read is just to remove the decoupling done in FPGA
+  rdata = axi_read(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, "Test axi_read");
+ 
+  ept = time(NULL); 
+  ept = ept - spt;
+  printf("Partial reprogramming completed in   %d seconds           \n", (int)ept);
 
 //-----------------------
+
+
+
+//===============================================
+//== NORMAL PROGRAMMING (No Partial Reconfig) ===
+//===== SUPPORTED CARDS :  all except 250SOC ====
+//===============================================
     } else { // if(subsys != 0x066A) and if (!PR_mode)
 // default code : not a 250SOC and not a PartialReconfiguration
     printf("----------------------------------\n");
@@ -413,6 +386,10 @@ int main(int argc, char *argv[])
   return 0;  // Incisive simulator doesn't like anything other than 0 as return value from main() 
 }
 
+
+//========================================
+
+// Programming Primary/Secondary SPI with primary/secondary bitstream
 int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag)
 {
   int priv1,priv2;
