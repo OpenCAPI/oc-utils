@@ -212,7 +212,9 @@ i=0;
     delimiter="|"
 
 # Collecting informations from oc-devices file    
+#list of ".1" slots returned by lspci containing "062b"
 while read d ; do
+        #extract the subsystem_device id to know the board id
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	# translate the slot number string to a hexa number
   	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
@@ -235,7 +237,9 @@ while read d ; do
 		  	flash_secondary[$i]=${parse_info[6]}
 		  	component_list=(${line:6:23})
 		  	bin_list=(${f:51})
+                        #display Card number : slot - Card name - date -name of last programming registered in file
 		  	printf "%-8s %-22s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+                        #display the 2 names of bin files
 		  	printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
 		  	echo ""
 	    	fi
@@ -252,6 +256,7 @@ if [ ! -z $paramcard ]; then
 #	card4=`printf "%04x" $card`
 	card4=$(printf '%04x' "0x${card}")
 	echo "Slot is: $card4"
+		echo $allcards
 	# search for card4 occurence and get line number in list of slots
 	ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
 	
@@ -378,7 +383,24 @@ if (($force != 1)); then
   # prompt to confirm
   while true; do
     printf "REMINDER: It is MANDATORY to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n\n" 
-    printf "You will flash ${bold}card in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
+
+    #extract the card name of the input argument
+    #file_to_program=`echo $1 |awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    #printf "The binary file you want to use is build for ${file_to_program}\n" 
+    #extract the name of the slot 
+    card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
+    #printf "You have chosen to reprogram ${card_to_program}\n"
+
+    if [ ${file_to_program} !=  ${card_to_program} ]; then 
+      printf "\n>>>===================================================================================<<<\n"
+      printf ">>> WARNING: You have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!! <<<\n"
+      printf ">>>===================================================================================<<<\n"
+    #else
+      #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
+    fi
+    printf "You will flash the ${bold} ${card_to_program} board in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
+
     if [ $flash_type == "SPIx8" ]; then
         printf " and ${bold}$2${normal}\n" 
     fi
@@ -398,6 +420,48 @@ else
 fi
 
 printf "\n"
+#=======================
+#add test for PR to check that PR number of partial bin file corrspond to the static image
+ask_if_like_risk=0
+if [ $PR_mode == 1 ]; then
+    #extract the card name of the input argument
+    PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    if [ -z "$PRC_dynamic" ]; then
+      printf ">>> WARNING : NO dynamic PR Code in filename! <<<\n" 
+      printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+      ask_if_like_risk=1
+    fi
+
+    #extract PRC_static from the name of the bin file logged in /var/ocxl/cardxx
+    PRC_static=`cat /var/ocxl/card$c | awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    #printf "From log flash file : $c ${p[$c]:0:6} $PRC_static\n"
+    if [ -z "$PRC_static" ]; then
+      printf ">>> WARNING : NO static PR Code found in filename logged in Flash log files! <<<\n" 
+      printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+      ask_if_like_risk=1
+    else
+       if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
+         printf ">>>============================================================================================<<<\n"
+         printf ">>> WARNING : Static code ${PRC_static} (flash log file) doesn't match with dynamic code ${PRC_dynamic} (your filename)!\n"
+         printf "You may crash and lose your card if you force the programming. You can continue at your own risk !\n" 
+         printf ">>>============================================================================================<<<\n"
+         ask_if_like_risk=1
+       else
+         printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
+         ask_if_like_risk=0
+       fi
+    fi
+
+    if [ $ask_if_like_risk == 1 ]; then
+      read -p "Do you want to continue? [y/n] " yn
+      case $yn in
+        [Yy]* ) break;;
+        [Nn]* ) exit;;
+        * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+      esac
+    fi
+fi
+#=======================
 
 # update flash history file
 if [ $flash_type == "SPIx8" ]; then
