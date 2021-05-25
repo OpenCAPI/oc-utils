@@ -141,6 +141,14 @@ else
         # Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
- $package_root/oc-reload --devicebdf $card  --startaddr 0x0 "Image Reloading for OpenCAPI Adapter $card"
- reset_card $card factory "Resetting OpenCAPI Adapter $card"
 
+  subsys=$(lspci -s `cat /sys/bus/pci/slots/${allcards_array[$c]}/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
+# adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
+if [ $subsys == "066a" ] || [ $subsys == "060d" ]; then
+  reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+
+#otherwise use the src/img_reload.c compiled code
+else
+  $package_root/oc-reload --devicebdf $card  --startaddr 0x0 "Image Reloading for OpenCAPI Adapter $card"
+  reset_card $card factory "Resetting OpenCAPI Adapter $card"
+fi
