@@ -16,7 +16,7 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=9.99
+tool_version=4.00
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
@@ -24,7 +24,7 @@ tool_version=9.99
 # V2.3 adding 250SOC specific code
 # V2.31 repaired the 4 bytes mode for 9H3
 # V3.00 reordering the slot numbering
-# V4.00 integrating the Partial reconfiguration (UNDER TEST)
+# V4.00 integrating the Partial reconfiguration
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -304,7 +304,7 @@ else
 
 fi
 
-printf "\n"
+#printf "\n"
 
 # check file type
 PR_mode=0
@@ -382,7 +382,7 @@ fi
 if (($force != 1)); then
   # prompt to confirm
   while true; do
-    printf "REMINDER: It is MANDATORY to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n\n" 
+    printf "\n>>> REMINDER: It is MANDATORY to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n\n" 
 
     #extract the card name of the input argument
     #file_to_program=`echo $1 |awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
@@ -392,14 +392,15 @@ if (($force != 1)); then
     card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
     #printf "You have chosen to reprogram ${card_to_program}\n"
 
-    if [ ${file_to_program} !=  ${card_to_program} ]; then 
-      printf "\n>>>===================================================================================<<<\n"
-      printf ">>> WARNING: You have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!! <<<\n"
-      printf ">>>===================================================================================<<<\n"
+    printf "You will flash the ${bold} ${card_to_program} board in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
+    if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
+      printf "\n>>>===================================================================================================<<<\n"
+      printf ">>> WARNING: It sounds as if you have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!! <<<\n"
+      printf ">>> You may crash and lose your card if you force the programming. You can continue at your own risk! <<<\n" 
+      printf ">>>===================================================================================================<<<\n"
     #else
       #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
     fi
-    printf "You will flash the ${bold} ${card_to_program} board in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
 
     if [ $flash_type == "SPIx8" ]; then
         printf " and ${bold}$2${normal}\n" 
@@ -455,7 +456,7 @@ if [ $PR_mode == 1 ]; then
     if [ $ask_if_like_risk == 1 ]; then
       read -p "Do you want to continue? [y/n] " yn
       case $yn in
-        [Yy]* ) break;;
+        [Yy]* ) ;;
         [Nn]* ) exit;;
         * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
       esac

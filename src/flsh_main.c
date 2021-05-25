@@ -180,7 +180,9 @@ int main(int argc, char *argv[])
       printf("ERROR: Must supply primary bitstream\n");
       exit(-1);
     }
-    else {printf("Primary bitstream: %s !\n", binfile);}
+    //else 
+      //{printf("Primary bitstream: %s !\n", binfile);}
+
     if(binfile2[0] == '\0') {
       printf("ERROR: Must supply secondary bitstream\n");
       exit(-1);

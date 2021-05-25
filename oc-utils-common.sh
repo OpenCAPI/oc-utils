@@ -107,7 +107,7 @@ function reload_card() {
 # subsys=$(lspci -s `cat /sys/bus/pci/slots/JP91NVB1/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
   subsys=$(lspci -s `cat /sys/bus/pci/slots/$slot/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
 # adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
-  if [ $subsys == "066a" ] || [ $subsys == "060d" ]
+  if [[ $subsys = @("066a"|"060d") ]]
   then
     # Unbinding to prevent driver to access the card before power down
     # TO DO : need to look for all existing /sys/bus/pci/slots/$slot/address`.X entries

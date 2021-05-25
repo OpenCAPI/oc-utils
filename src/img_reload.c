@@ -148,19 +148,31 @@ int main(int argc, char *argv[])
   u32 wdata, wdatatmp, rdata, burst_size;
   u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
   u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
+  time_t start_time, current_time;
+  int timeout=0;
 
+  time(&start_time);
   rdata = 0;
   if(verbose_flag) 
      printf("Waiting for ICAP EOS set \e[1A\n");
-  while (rdata != SR_ICAPEn_EOS) {
+
+  while ((rdata != SR_ICAPEn_EOS) && (timeout < 1)) {
     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+    time(&current_time);
+    timeout = (int)difftime(current_time, start_time);
   }
+  // timeout can occur for old images, then use the old reload from oc-utils-common.sh
+  if(timeout >= 1) {
+     //printf("Timeout! EOS cannot be set \n");
+     return 0;
+  }
+     
   if(verbose_flag) 
      printf("ICAP EOS done.\n");
 
 
   if(verbose_flag)  {
-      read_QSPI_regs();
+     read_QSPI_regs();
      read_ICAP_regs();
   }
 //==============================================
