@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// -------------------------------------------------------------------------------)
+// This sequence is using the reload writing to the HWICAP (and not the iprog_icap)
+// The procedure used is described in UG570 Table 11.3 for IPROG command using ICAP
+// -------------------------------------------------------------------------------)
 
 #include <stdio.h>
 #include <string.h>
