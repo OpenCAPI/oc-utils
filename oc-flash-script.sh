@@ -393,6 +393,10 @@ if (($force != 1)); then
     #printf "You have chosen to reprogram ${card_to_program}\n"
 
     printf "You will flash the ${bold} ${card_to_program} board in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
+    if [ $flash_type == "SPIx8" ]; then
+        printf " and ${bold}$2${normal}\n" 
+    fi
+
     if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
       printf "\n>>>===================================================================================================<<<\n"
       printf ">>> WARNING: It sounds as if you have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!! <<<\n"
@@ -402,9 +406,6 @@ if (($force != 1)); then
       #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
     fi
 
-    if [ $flash_type == "SPIx8" ]; then
-        printf " and ${bold}$2${normal}\n" 
-    fi
     read -p "Do you want to continue? [y/n] " yn
     case $yn in
       [Yy]* ) break;;
