@@ -58,7 +58,8 @@ reset_factory=0
 # Print usage message helper function
 function usage() {
   echo ""
-  echo "Example: sudo ${program}  xxx_primary.bin xxx_secondary.bin"
+  echo "Example  : sudo ${program}  xxx_primary.bin xxx_secondary.bin"
+  echo "or for PR: sudo ${program}  xxx_partial.bin"
   echo ""
 
   echo "Usage:  sudo ${program} [OPTIONS]"
@@ -425,6 +426,7 @@ printf "\n"
 #=======================
 #add test for PR to check that PR number of partial bin file corrspond to the static image
 ask_if_like_risk=0
+if (($force != 1)); then
 if [ $PR_mode == 1 ]; then
     #extract the card name of the input argument
     PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
@@ -462,6 +464,7 @@ if [ $PR_mode == 1 ]; then
         * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
       esac
     fi
+fi
 fi
 #=======================
 
