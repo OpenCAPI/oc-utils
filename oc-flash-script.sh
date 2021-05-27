@@ -502,12 +502,11 @@ wait $PID
 RC=$?
 if [ $RC -eq 0 ]; then
 	if [ $PR_mode == 0 ]; then
-		#  reload card only if Flashing was good, TBD
+		#  reload code from Flash (oc-reload calls a oc_reset)
       		printf "Auto reload the image from flash:\n"
-     		#./oc-reload.sh -C ${allcards_array[$c]}
       		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
 	else
-		#  In PR mode, remove the decoupling before resetting the card
+		#  In PR mode, reset cleans the logic but could be not mandatory
 		reset_card $bdf factory "Resetting OpenCAPI Adapter $bdf"
 	fi
 fi
