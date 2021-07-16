@@ -337,8 +337,8 @@ char* axi_addr_as_str(                   // Convert slave address to register na
   if (axi_devsel == FA_ICAP && axi_addr == FA_ICAP_RFO    ) return "RFO   ";
   if (axi_devsel == FA_ICAP && axi_addr == FA_ICAP_ASR    ) return "ASR   ";
 
-  ERRORS_DETECTED++;
-  printf("(axi_addr_as_str): ***ERROR - unrecognized combination of axi_devsel (h%8x) and axi_addr (h%8x) ***\n", axi_devsel, axi_addr);
+  //ERRORS_DETECTED++;
+  //printf("(axi_addr_as_str): ***ERROR - unrecognized combination of axi_devsel (h%8x) and axi_addr (h%8x) ***\n", axi_devsel, axi_addr);
   return "<UNKNOWN>";
 }
 
