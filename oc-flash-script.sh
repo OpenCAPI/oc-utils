@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2016, 2020 International Business Machines
+# Copyright 2016, 2021 International Business Machines
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=3.00
+tool_version=4.00
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
@@ -24,6 +24,7 @@ tool_version=3.00
 # V2.3 adding 250SOC specific code
 # V2.31 repaired the 4 bytes mode for 9H3
 # V3.00 reordering the slot numbering
+# V4.00 integrating the Partial reconfiguration
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
@@ -53,7 +54,8 @@ reset_factory=0
 # Print usage message helper function
 function usage() {
   echo ""
-  echo "Example: sudo ${program}  xxx_primary.bin xxx_secondary.bin"
+  echo "Example  : sudo ${program}  xxx_primary.bin xxx_secondary.bin"
+  echo "or for PR: sudo ${program}  xxx_partial.bin"
   echo ""
 
   echo "Usage:  sudo ${program} [OPTIONS]"
@@ -66,7 +68,7 @@ function usage() {
   echo "    <path-to-bin-file>"
   echo "    <path-to-secondary-bin-file> (Only for SPIx8 device)"
   echo
-  echo "Utility to flash/write bitstreams to CAPI FPGA cards."
+  echo "Utility to flash/write bitstreams to OpenCAPI FPGA cards."
   echo "Please ensure that you are using the right bitstream data."
   echo "Using non-functional bitstream data or aborting the process"
   echo "can leave your card in a state where a hardware debugger is"
@@ -207,7 +209,9 @@ i=0;
     delimiter="|"
 
 # Collecting informations from oc-devices file    
+#list of ".1" slots returned by lspci containing "062b"
 while read d ; do
+        #extract the subsystem_device id to know the board id
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	# translate the slot number string to a hexa number
   	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
@@ -230,7 +234,9 @@ while read d ; do
 		  	flash_secondary[$i]=${parse_info[6]}
 		  	component_list=(${line:6:23})
 		  	bin_list=(${f:51})
+                        #display Card number : slot - Card name - date -name of last programming registered in file
 		  	printf "%-8s %-22s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+                        #display the 2 names of bin files
 		  	printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
 		  	echo ""
 	    	fi
@@ -247,6 +253,7 @@ if [ ! -z $paramcard ]; then
 #	card4=`printf "%04x" $card`
 	card4=$(printf '%04x' "0x${card}")
 	echo "Slot is: $card4"
+		echo $allcards
 	# search for card4 occurence and get line number in list of slots
 	ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
 	
@@ -294,9 +301,10 @@ else
 
 fi
 
-printf "\n"
+#printf "\n"
 
 # check file type
+PR_mode=0
 FILE_EXT=${1##*.}
 if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   if [[ $FILE_EXT != "rbf" ]]; then
@@ -316,7 +324,12 @@ fi
 # get flash address and block size
 if [ -z "$flash_address" ]; then
   flash_address=${flash_partition[$c]}
-  if [[ $1 =~ "fw_" ]]
+  if [[ $1 =~ "_partial" ]]
+  then
+     printf "Partial Reconfiguration mode detected.\n"
+     PR_mode=1
+  fi
+  else if [[ $1 =~ "fw_" ]]
   then
      printf "===================================================================================\n"
      echo "NOTE : You are in the process of programming a CAPI2 image in FACTORY area!"
@@ -334,11 +347,16 @@ fi
 if [ -z "$flash_type" ]; then
   flash_type="BPIx16" #If it is not listed in oc-device file, use default value
 fi
+if [ $PR_mode == 1 ]; then
+  flash_type="PR_SPIx8" #if PR mode then overide the flash_type setting to consider it as a 
+fi
 
 # Deal with the second argument
 if [ $flash_type == "SPIx8" ]; then
     if [ $# -eq 1 ]; then
       printf "${bold}ERROR:${normal} Input argument missing. The selected device is SPIx8 and needs both primary and secondary bin files\n"
+      bdf=`echo ${allcards_array[$c]}`
+      echo $bdf
       usage
       exit 1
     fi
@@ -361,11 +379,30 @@ fi
 if (($force != 1)); then
   # prompt to confirm
   while true; do
-    printf "REMINDER: It is MANDATORY to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n" 
-    printf "You will flash ${bold}card$c${normal} with:\n     ${bold}$1${normal}\n" 
+    printf "\n>>> REMINDER: It is MANDATORY to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n\n" 
+
+    #extract the card name of the input argument
+    #file_to_program=`echo $1 |awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    #printf "The binary file you want to use is build for ${file_to_program}\n" 
+    #extract the name of the slot 
+    card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
+    #printf "You have chosen to reprogram ${card_to_program}\n"
+
+    printf "You will flash the ${bold} ${card_to_program} board in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
     if [ $flash_type == "SPIx8" ]; then
         printf " and ${bold}$2${normal}\n" 
     fi
+
+    if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
+      printf "\n>>>===================================================================================================<<<\n"
+      printf ">>> WARNING: It sounds as if you have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!! <<<\n"
+      printf ">>> You may crash and lose your card if you force the programming. You can continue at your own risk! <<<\n" 
+      printf ">>>===================================================================================================<<<\n"
+    #else
+      #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
+    fi
+
     read -p "Do you want to continue? [y/n] " yn
     case $yn in
       [Yy]* ) break;;
@@ -382,6 +419,50 @@ else
 fi
 
 printf "\n"
+#=======================
+#add test for PR to check that PR number of partial bin file corrspond to the static image
+ask_if_like_risk=0
+if (($force != 1)); then
+if [ $PR_mode == 1 ]; then
+    #extract the card name of the input argument
+    PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    if [ -z "$PRC_dynamic" ]; then
+      printf ">>> WARNING : NO dynamic PR Code in filename! <<<\n" 
+      printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+      ask_if_like_risk=1
+    fi
+
+    #extract PRC_static from the name of the bin file logged in /var/ocxl/cardxx
+    PRC_static=`cat /var/ocxl/card$c | awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    #printf "From log flash file : $c ${p[$c]:0:6} $PRC_static\n"
+    if [ -z "$PRC_static" ]; then
+      printf ">>> WARNING : NO static PR Code found in filename logged in Flash log files! <<<\n" 
+      printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+      ask_if_like_risk=1
+    else
+       if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
+         printf ">>>============================================================================================<<<\n"
+         printf ">>> WARNING : Static code ${PRC_static} (flash log file) doesn't match with dynamic code ${PRC_dynamic} (your filename)!\n"
+         printf "You may crash and lose your card if you force the programming. You can continue at your own risk !\n" 
+         printf ">>>============================================================================================<<<\n"
+         ask_if_like_risk=1
+       else
+         printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
+         ask_if_like_risk=0
+       fi
+    fi
+
+    if [ $ask_if_like_risk == 1 ]; then
+      read -p "Do you want to continue? [y/n] " yn
+      case $yn in
+        [Yy]* ) ;;
+        [Nn]* ) exit;;
+        * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+      esac
+    fi
+fi
+fi
+#=======================
 
 # update flash history file
 if [ $flash_type == "SPIx8" ]; then
@@ -419,8 +500,12 @@ trap - TERM INT
 wait $PID
 RC=$?
 if [ $RC -eq 0 ]; then
-	#  reload card only if Flashing was good, TBD
-      	printf "Auto reload the image from flash:\n"
-     	#./oc-reload.sh -C ${allcards_array[$c]}
-      	source $package_root/oc-reload.sh -C ${allcards_array[$c]}
+	if [ $PR_mode == 0 ]; then
+		#  reload code from Flash (oc-reload calls a oc_reset)
+      		printf "Auto reload the image from flash:\n"
+      		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
+	else
+		#  In PR mode, reset cleans the logic but could be not mandatory
+		reset_card $bdf factory "Resetting OpenCAPI Adapter $bdf"
+	fi
 fi

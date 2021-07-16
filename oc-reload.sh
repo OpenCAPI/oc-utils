@@ -41,6 +41,7 @@ function usage() {
   echo "Please notify other users who you work with them on the same server."
   echo
 }
+
 # Select function for FPGA Cards Selection
 function select_cards() {
     # print current date on server for comparison
@@ -140,4 +141,27 @@ else
         # Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
-reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+
+subsys=$(cat /sys/bus/pci/devices/${card}/subsystem_device)
+# adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
+
+#if [ $subsys == "0x066a" ]; then
+if [[ $subsys = @("0x066a"|"0x060d") ]]; then 
+  printf "Warning - known issue on 250SOC reload - you may need to reboot the server\n"
+  reload_card $card factory "Image Reloading for OpenCAPI Adapter $card (250SOC)"
+
+#otherwise use the src/img_reload.c compiled code
+else
+  start=`date +%s`
+  $package_root/oc-reload --devicebdf $card  --startaddr 0x0 "Image Reloading for OpenCAPI Adapter $card (new images)"
+  end=`date +%s`
+
+  runtime=$((end-start))
+  # in oc-reload we wait for 1 sec to see if EOS is set to 1, if not then a timeout occurs
+  if [ $runtime -ge 1 ]; then
+     #echo "reload with the reload_card function (old image detected)"
+     reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+  else
+     reset_card $card factory "Resetting OpenCAPI Adapter $card"
+  fi
+fi

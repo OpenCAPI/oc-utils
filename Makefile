@@ -36,12 +36,12 @@ ARCH_SUPPORTED:=$(shell echo -e "\n\#if !(defined(_ARCH_PPC64) && defined(_LITTL
 	"\n\#endif" | ($(CC) $(CFLAGS) -E -o /dev/null - 2>&1 || exit 1))
 
 ifneq ($(strip $(ARCH_SUPPORTED)),)
-$(error Target not supported. Currently CAPI utils is only supported on ppc64le)
+$(error Target not supported. Currently OpenCAPI utils is only supported on ppc64le)
 endif
 
 install_point=lib/oc-utils
 
-TARGETS=oc-flash
+TARGETS=oc-flash oc-reload
 
 install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-reload.sh oc-list-cards.sh oc-devices
 
@@ -49,6 +49,8 @@ install_files = $(TARGETS) oc-utils-common.sh oc-flash-script.sh oc-reset.sh oc-
 all: $(TARGETS)
 
 oc-flash: src/flsh_global_vars.c src/flsh_common_funcs.c src/flsh_main.c
+	$(CC) $(CFLAGS) $^ -o $@
+oc-reload: src/flsh_global_vars.c src/flsh_common_funcs.c src/img_reload.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 .PHONY: install

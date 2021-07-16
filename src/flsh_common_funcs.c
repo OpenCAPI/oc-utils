@@ -34,12 +34,12 @@
 #ifdef USE_SIM_TO_TEST
   #include "svdpi.h"
   extern void CFG_WR_C(unsigned int, unsigned int, unsigned int, const char*);
-  extern void CFG_RD_C(unsigned int, unsigned int*, const char*);  
+  extern void CFG_RD_C(unsigned int, unsigned int*, const char*);
   extern void WORKAROUND_FORCE_DQ(unsigned int);
   extern void WORKAROUND_RELEASE_DQ(unsigned int);
 #endif
 
-
+static int GlobalEOS = 0;
 
 // --------------------------------------------------------------------------------------------------------
 // Configuration register operations
@@ -51,7 +51,7 @@ void config_write(                    // Host issues 'config_write' instruction 
                  , char *s)           //   String to add to trace print message, identifying more about this instance of invocation. Set to NULL if unused.
 { int rc;
 
-  if (TRC_CONFIG == TRC_ON) 
+  if (TRC_CONFIG == TRC_ON)
     printf("trace      config_write  addr h%8x, wdata h%8x, num_bytes %1d, <%s>\n", addr, wdata, num_bytes, s);
 
   if (!(num_bytes == 1 || num_bytes == 2 || num_bytes == 4)) {
@@ -74,7 +74,7 @@ void config_write(                    // Host issues 'config_write' instruction 
   char writedatastr[64] = "";
   char writedatastr2[64] = "";
   strcpy(command1, "putmemproc -ci 60302016E0000 80000");
- 
+
   strcat(command1, addr);
   strcat(command1, "00000000");
   strcpy(command2, "putmemproc -ci 60302016E0080 ");
@@ -121,7 +121,7 @@ void config_write(                    // Host issues 'config_write' instruction 
     perror("  ");   // Print meaning of the error placed in errno
     ERRORS_DETECTED++;
   };
-  write(CFG_FD, &wdata, num_bytes);     // Write bytes 
+  write(CFG_FD, &wdata, num_bytes);     // Write bytes
   if (rc != num_bytes) {
     //printf("*** ERROR in config_write(), write() ***: addr h%8x, wdata h%8x, num_bytes %1d, <%s>\n", addr, wdata, num_bytes, s);
     //printf("  number of bytes written, which should be %1d, = %d\n", num_bytes, rc);
@@ -130,13 +130,13 @@ void config_write(                    // Host issues 'config_write' instruction 
   };
 #endif
 
-  return; 
+  return;
 }
 
 
 
 // --------------------------------------------------------------------------------------------------------
-u32  config_read(                     // Host issues 'config_read' instruction over OpenCAPI interface to AFU config space 
+u32  config_read(                     // Host issues 'config_read' instruction over OpenCAPI interface to AFU config space
                   u32 addr            //   Always reads 4 bytes
                 , char *s)            //   String to add to trace print message, identifying more about this instance of invocation. Set to NULL if unused.
 { int rc;
@@ -158,7 +158,7 @@ u32  config_read(                     // Host issues 'config_read' instruction o
   char readdatastr[1024] = "";
   char readdatastr2[1024] = "";
   strcpy(command1, "putmemproc -ci 60302016E0000 80000");
-  
+
   strcat(command1, addr);
   strcat(command1, "00000000");
   strcpy(command2, "getmemproc -ci 60302016E0080 4");
@@ -196,7 +196,7 @@ u32  config_read(                     // Host issues 'config_read' instruction o
     perror("  ");   // Print meaning of the error placed in errno
     ERRORS_DETECTED++;
   };
-  read(CFG_FD, &rdata, 4);              // Always read 4 bytes 
+  read(CFG_FD, &rdata, 4);              // Always read 4 bytes
   if (rc != 4) {
     //printf("*** ERROR in config_read(), read() ***: addr h%8x, rdata h%8x, <%s>\n", addr, rdata, s);
     //printf("  number of bytes read, which should be 4, = %d\n", rc);
@@ -205,10 +205,10 @@ u32  config_read(                     // Host issues 'config_read' instruction o
   };
 #endif
 
-  if (TRC_CONFIG == TRC_ON) 
+  if (TRC_CONFIG == TRC_ON)
     printf("trace      config_read   addr h%8x, rdata h%8x,              <%s>\n", addr, rdata, s);
 
-  return (rdata); 
+  return (rdata);
 }
 
 
@@ -242,14 +242,14 @@ void check_axi_status(              // Check 'device specific status' signals sa
   u32 eos_bit           , eos_mask;
 
   // Extract bits and masks
-  qspi_interrupt_bit  = rdata & DEVSTAT_QSPI_INTERRUPT;   
-  icap_interrupt_bit  = rdata & DEVSTAT_ICAP_INTERRUPT;    
-  preq_bit            = rdata & DEVSTAT_PREQ;   
+  qspi_interrupt_bit  = rdata & DEVSTAT_QSPI_INTERRUPT;
+  icap_interrupt_bit  = rdata & DEVSTAT_ICAP_INTERRUPT;
+  preq_bit            = rdata & DEVSTAT_PREQ;
   eos_bit             = rdata & DEVSTAT_EOS;
 
-  qspi_interrupt_mask = mask  & DEVSTAT_QSPI_INTERRUPT;  
-  icap_interrupt_mask = mask  & DEVSTAT_ICAP_INTERRUPT;   
-  preq_mask           = mask  & DEVSTAT_PREQ;  
+  qspi_interrupt_mask = mask  & DEVSTAT_QSPI_INTERRUPT;
+  icap_interrupt_mask = mask  & DEVSTAT_ICAP_INTERRUPT;
+  preq_mask           = mask  & DEVSTAT_PREQ;
   eos_mask            = mask  & DEVSTAT_EOS;
 
   if (qspi_interrupt_mask == U32_ZERO && qspi_interrupt_bit != U32_ZERO) {
@@ -264,9 +264,10 @@ void check_axi_status(              // Check 'device specific status' signals sa
     ERRORS_DETECTED++;
     printf("(check_axi_status) <%s>: ***ERROR - preq bit is set ***\n", s);
   }
-  if (eos_mask            == U32_ZERO && eos_bit            != DEVSTAT_EOS) {
+  if (eos_mask            == U32_ZERO && eos_bit            != DEVSTAT_EOS  && GlobalEOS ==0) {
     ERRORS_DETECTED++;
-    printf("(check_axi_status) <%s>: ***ERROR - eos bit is not set ***\n", s);
+    printf("\n(check_axi_status) <%s>: ***ERROR - eos bit is not set ***\n", s);
+    GlobalEOS = 1;
   }
   return;
 }
@@ -277,7 +278,7 @@ void check_axi_status(              // Check 'device specific status' signals sa
 char* axi_devsel_as_str(u32 axi_devsel)  // Convert device select value to string for nicer printing
 { if (axi_devsel == FA_QSPI) return "QSPI";
   if (axi_devsel == FA_ICAP) return "ICAP";
-  
+
   ERRORS_DETECTED++;
   printf("(axi_devsel_as_str): ***ERROR - unrecognized axi_devsel (h%8x) ***\n", axi_devsel);
   return "<UNKNOWN>";
@@ -289,7 +290,7 @@ char* axi_devsel_as_str(u32 axi_devsel)  // Convert device select value to strin
 char* exp_enab_as_str(u32 exp_enab)      // Convert byte expander enable to string for nicer printing
 { if (exp_enab == FA_EXP_OFF) return "OFF";
   if (exp_enab == FA_EXP_ON)  return "ON ";
-  
+
   ERRORS_DETECTED++;
   printf("(exp_enab_as_str): ***ERROR - unrecognized exp_enab (h%8x) ***\n", exp_enab);
   return "<UNKNOWN>";
@@ -301,7 +302,7 @@ char* exp_enab_as_str(u32 exp_enab)      // Convert byte expander enable to stri
 char* exp_dir_as_str(u32 exp_dir)        // Convert byte expander direction to string for nicer printing
 { if (exp_dir == FA_EXP_0123) return "0123";
   if (exp_dir == FA_EXP_3210) return "3210";
-  
+
   ERRORS_DETECTED++;
   printf("(exp_dir_as_str): ***ERROR - unrecognized exp_dir (h%8x) ***\n", exp_dir);
   return "<UNKNOWN>";
@@ -311,7 +312,7 @@ char* exp_dir_as_str(u32 exp_dir)        // Convert byte expander direction to s
 // --------------------------------------------------------------------------------------------------------
 char* axi_addr_as_str(                   // Convert slave address to register name for nicer printing
                         u32 axi_devsel   //   Need device select to know which slave is targeted
-                      , u32 axi_addr)    //   Targeted address in slave 
+                      , u32 axi_addr)    //   Targeted address in slave
 { if (axi_devsel == FA_QSPI && axi_addr == FA_QSPI_SRR    ) return "SRR   ";
   if (axi_devsel == FA_QSPI && axi_addr == FA_QSPI_SPICR  ) return "SPICR ";
   if (axi_devsel == FA_QSPI && axi_addr == FA_QSPI_SPISR  ) return "SPISR ";
@@ -342,9 +343,9 @@ char* axi_addr_as_str(                   // Convert slave address to register na
 }
 
 
-
 // --------------------------------------------------------------------------------------------------------
-void axi_write(                     // Initiate a write operation on the AXI4-Lite bus 
+// This write is used for the reload once the specific sequence has been written and before a reset. No more read can then be done.
+void axi_write_no_check(                     // Initiate a write operation on the AXI4-Lite bus
                 u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
               , u32 axi_addr        //   Select target register within the selected core
               , u32 exp_enab        //   Choose whether to use data expander
@@ -359,7 +360,37 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
   int saved_TRC_CONFIG;
   char s_err[1024];
   char s_devstat[1044];
+ //int cnt ;
+  snprintf(call_args, sizeof(call_args),
+           "devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
+           axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
 
+  if (TRC_AXI == TRC_ON) printf("trace    axi_write     %s\n", call_args);
+  //printf("trace    axi_write     %s\n", call_args);
+
+  // Step 1: config_write to FLASH_DATA, then FLASH_ADDR initiating AXI write
+  config_write(CFG_FLASH_DATA, axi_wdata, 4, "axi_write - step 1a: store write data into FLASH_DATA register");
+  config_write(CFG_FLASH_ADDR, form_FLASH_ADDR(axi_devsel, axi_addr, FA_WR, exp_enab, exp_dir), 4, "axi_write - step 1b: write to FLASH_ADDR initiates");
+
+  return;
+}
+
+// --------------------------------------------------------------------------------------------------------
+void axi_write(                     // Initiate a write operation on the AXI4-Lite bus
+                u32 axi_devsel      //   Select AXI4-Lite slave that is target of operation
+              , u32 axi_addr        //   Select target register within the selected core
+              , u32 exp_enab        //   Choose whether to use data expander
+              , u32 exp_dir         //   Determine expander direction
+              , u32 axi_wdata       //   Data written to AXI4-Lite slave
+              , char *s             //   Comment to be printed in trace message
+              )
+{
+  char call_args[1024];
+  u32 read_FA;
+  u32 resp;
+  int saved_TRC_CONFIG;
+  char s_err[1024];
+  char s_devstat[1044];
   snprintf(call_args, sizeof(call_args),
 	   "devsel %s, addr %s (h%8.8X), wdata h%8.8x, exp_enab %s, exp_dir %s, <%s>",
 	   axi_devsel_as_str(axi_devsel), axi_addr_as_str(axi_devsel,axi_addr), axi_addr, axi_wdata, exp_enab_as_str(exp_enab), exp_dir_as_str(exp_dir), s);
@@ -372,7 +403,7 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
 
   // Step 2: config_read's to poll on Write Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
   saved_TRC_CONFIG = TRC_CONFIG;
-  do  
+  do
   { read_FA = config_read(CFG_FLASH_ADDR, "axi_write - step  2: wait for Write Strobe to become 0 indicating AXI write is complete");
     TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
   } while ((read_FA & FA_WR) == FA_WR);    // Continue while Write Strobe is 1
@@ -383,16 +414,19 @@ void axi_write(                     // Initiate a write operation on the AXI4-Li
   if (resp != FA_WR_RESP_OK) {
     ERRORS_DETECTED++;
     switch (resp)
-    { case FA_WR_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break; 
+    { case FA_WR_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break;
       case FA_WR_RESP_RSVD   : sprintf(s_err,"RESERVED      "); break;
       case FA_WR_RESP_SLVERR : sprintf(s_err,"SLAVE_ERROR   "); break;
       case FA_WR_RESP_INVLD  : sprintf(s_err,"INVALID SELECT"); break;
-      default                : sprintf(s_err,"<UNKNOWN>     "); 
+      default                : sprintf(s_err,"<UNKNOWN>     ");
     }
     printf("(axi_write): %s:  *** ERROR - detected bad response on axi_write of %s (h%8x) ***\n", call_args, s_err, resp);
   }
 
   // Check device status signals
+  // set GlobalEOS to 1 with Partial Reconfiguration to remove "eos bit unset" error message
+  if((axi_devsel == FA_ICAP ) && (axi_addr == FA_ICAP_CR)) GlobalEOS = 1;
+
   snprintf(s_devstat, sizeof(s_devstat), "(axi_write): %s ", call_args);
   check_axi_status(read_FA, U32_ZERO, s_devstat);
 
@@ -429,7 +463,7 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
 
   // Step 2a: config_read's to poll on Read Strobe to see when it is finished. Print trace msg on only the first one to avoid cluttering output
   saved_TRC_CONFIG = TRC_CONFIG;
-  do  
+  do
   { read_FA = config_read(CFG_FLASH_ADDR, "axi_read  - step 2: wait for Read Strobe to become 0 indicating AXI read is complete");
     TRC_CONFIG = 0;  // After 1st poll, stop printing lower level msgs. Reduces clutter, plus doesn't multi-count config_read ops when timing isn't real
   } while ((read_FA & FA_RD) == FA_RD);    // Continue while Read Strobe is 1
@@ -440,23 +474,26 @@ u32 axi_read(                      // Initiate a read operation on the AXI4-Lite
   if (resp != FA_RD_RESP_OK) {
     ERRORS_DETECTED++;
     switch (resp)
-    { case FA_RD_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break; 
+    { case FA_RD_RESP_OK     : sprintf(s_err,"SUCCESSFUL    "); break;
       case FA_RD_RESP_RSVD   : sprintf(s_err,"RESERVED      "); break;
       case FA_RD_RESP_SLVERR : sprintf(s_err,"SLAVE_ERROR   "); break;
       case FA_RD_RESP_INVLD  : sprintf(s_err,"INVALID SELECT"); break;
-      default                : sprintf(s_err,"<UNKNOWN>     "); 
+      default                : sprintf(s_err,"<UNKNOWN>     ");
     }
     printf("(axi_read): %s:  *** ERROR - detected bad response on axi_read of %s (h%8x) ***\n", call_args, s_err, resp);
   }
 
   // Check device status signals
+  // set GlobalEOS to 1 with Partial Reconfiguration to remove "eos bit unset" error message
+  if((axi_devsel == FA_ICAP ) && (axi_addr == FA_ICAP_CR)) GlobalEOS = 1;
+
   snprintf(s_devstat, sizeof(s_devstat), "(axi_read): %s ", call_args);
   check_axi_status(read_FA, U32_ZERO, s_devstat);
 
   // Step 4: Read returned data
   rdata = config_read(CFG_FLASH_DATA, "axi_read  - step 3: retrieve data from FLASH_DATA register");
 
-  if (TRC_AXI == TRC_ON) printf("trace    axi_read completion   (rdata h%8x)\n", rdata); 
+  if (TRC_AXI == TRC_ON) printf("trace    axi_read completion   (rdata h%8x)\n", rdata);
 
   return rdata;
 }
@@ -577,13 +614,13 @@ u32 read_ICAP_reg(u32 reg_addr)
   u32 rdata;
 
   rdata = axi_read(FA_ICAP, reg_addr, FA_EXP_OFF, FA_EXP_0123, "reading selected ICAP reg");
-  //printf("Read data %x\n", rdata);
+  printf("Read data %x\n", rdata);
   return rdata;
 }
 
 void write_ICAP_reg(u32 reg_addr, u32 wdata)
 {
-  //printf("Writing data %x\n", wdata);
+  printf("Writing data %x\n", wdata);
   axi_write(FA_ICAP, reg_addr, FA_EXP_OFF, FA_EXP_0123, wdata, "writing selected ICAP reg");
   return;
 }
@@ -644,16 +681,16 @@ void read_ICAP_regs()    // Read and display all AXI readable registers in HWICA
   rdata = axi_read(FA_ICAP, FA_ICAP_IER , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   printf("(h%4x) ICAP IER    = h%8x  (RW) IP Interrupt Enable Register     \n", FA_ICAP_IER , rdata);
 
-//rdata = axi_read(FA_ICAP, FA_ICAP_WF  , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");              
+//rdata = axi_read(FA_ICAP, FA_ICAP_WF  , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
 //printf("(h%4x) ICAP WF     = h%8x  (WO) Write FIFO Keyhole Register      \n", FA_ICAP_WF  , rdata);
-  printf("(h%4x) ICAP WF     = not_read   (WO) Write FIFO Keyhole Register      \n", FA_ICAP_WF); 
+  printf("(h%4x) ICAP WF     = not_read   (WO) Write FIFO Keyhole Register      \n", FA_ICAP_WF);
 
   rdata = axi_read(FA_ICAP, FA_ICAP_RF  , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   printf("(h%4x) ICAP RF     = h%8x  (RO) Read FIFO Keyhole Register       \n", FA_ICAP_RF  , rdata);
 
-//rdata = axi_read(FA_ICAP, FA_ICAP_SZ  , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");              
+//rdata = axi_read(FA_ICAP, FA_ICAP_SZ  , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
 //printf("(h%4x) ICAP SZ     = h%8x  (WO) Size Register                    \n", FA_ICAP_SZ  , rdata);
-  printf("(h%4x) ICAP SZ     = not_read   (WO) Size Register                    \n", FA_ICAP_SZ); 
+  printf("(h%4x) ICAP SZ     = not_read   (WO) Size Register                    \n", FA_ICAP_SZ);
 
   rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   printf("(h%4x) ICAP CR     = h%8x  (RW) Control Register                 \n", FA_ICAP_CR  , rdata);
@@ -675,6 +712,77 @@ void read_ICAP_regs()    // Read and display all AXI readable registers in HWICA
 }
 
 
+// Read IDCODE certify the exact type of the FPGA
+void read_FPGA_IDCODE()
+{
+  u32 wdata, wdatatmp, rdata, burst_size;
+  u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
+  u32 SZ_Read_One_Word = 1, CR_Read_cmd = 2, RFO_wait_rd_done=1;
+
+//==============================================
+
+  //printf("Read IDCODE from AXI_HWICAP                      \n");
+
+  rdata = 0;
+  while (rdata != SR_ICAPEn_EOS)  {
+     rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+     //printf("Waiting for ICAP SR = 5 \e[1A\n");
+  }
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x000000BB;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x11220044;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xFFFFFFFF;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0xAA995566;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x28018001;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  wdata = 0x20000000;
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+  // flush
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
+  rdata = 0;
+  while (rdata != 0x0000003F) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_WFV  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read WFV (monitor ICAPEn)");
+    //printf("waiting for WFV - h%x\t.", rdata);
+  }
+
+  axi_write(FA_ICAP, FA_ICAP_SZ, FA_EXP_OFF, FA_EXP_0123, SZ_Read_One_Word, "ICAP: write SZ ");
+  rdata = 1;
+  while (rdata != CR_Write_clear) {
+     rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+     //printf("Waiting for ICAP CR = 0 (actual =  h%x)\e[1A\n", rdata);
+  }
+
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Read_cmd, "ICAP: Read cmd ");
+  rdata = 0;
+  while (rdata != RFO_wait_rd_done) {
+     rdata = axi_read(FA_ICAP, FA_ICAP_RFO  , FA_EXP_OFF, FA_EXP_0123, "ICAP: poll RFO until read completed");
+     //printf("Waiting for ICAP RFO = 1 \e[1A           \n");
+  }
+
+  rdata = axi_read(FA_ICAP, FA_ICAP_RF , FA_EXP_OFF, FA_EXP_0123, "ICAP: read FIFO");
+
+  //find IDCODE of ultracsale in UG570 and of zync in UG1085
+  if      (rdata == 0x14b39093) printf("Read IDCODE from AXI_HWICAP is 0x%x = VU3P  (AD9V3) \n", rdata);
+  else if (rdata == 0x14b69093) printf("Read IDCODE from AXI_HWICAP is 0x%x = VU33P (AD9H3) \n", rdata);
+  else if (rdata == 0x14b79093) printf("Read IDCODE from AXI_HWICAP is 0x%x = VU33P (AD9H7) \n", rdata);
+  else if (rdata == 0x14758093) printf("Read IDCODE from AXI_HWICAP is 0x%x = ZU18EG (250SOC) \n", rdata);
+  else                         printf("Read IDCODE from AXI_HWICAP is 0x%x (see UG570 or UG1085 \n", rdata);
+
+ // End of IDCODE read
+//==============================================
+
+  return;
+}
+
 
 // --------------------------------------------------------------------------------------------------------
 void read_QSPI_regs()    // Read and display all AXI readable registers in Quad SPI core
@@ -683,7 +791,7 @@ void read_QSPI_regs()    // Read and display all AXI readable registers in Quad 
 
 //rdata = axi_read(FA_QSPI, FA_QSPI_SRR   , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
 //printf("(h%4x) QSPI SRR    = h%8x  (WO)    Software Reset Register                 \n", FA_QSPI_SRR   , rdata);
-  printf("(h%4x) QSPI SRR    = not_read   (WO)    Software Reset Register                 \n", FA_QSPI_SRR); 
+  printf("(h%4x) QSPI SRR    = not_read   (WO)    Software Reset Register                 \n", FA_QSPI_SRR);
 
   rdata = axi_read(FA_QSPI, FA_QSPI_SPICR , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   printf("(h%4x) QSPI SPICR  = h%8x  (RW)    SPI Control Register                    \n", FA_QSPI_SPICR , rdata);
@@ -693,11 +801,11 @@ void read_QSPI_regs()    // Read and display all AXI readable registers in Quad 
 
 //rdata = axi_read(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
 //printf("(h%4x) QSPI SPIDTR = h%8x  (WO)    SPI Data Transmit Register              \n", FA_QSPI_SPIDTR, rdata);
-  printf("(h%4x) QSPI SPIDTR = not_read   (WO)    SPI Data Transmit Register              \n", FA_QSPI_SPIDTR); 
+  printf("(h%4x) QSPI SPIDTR = not_read   (WO)    SPI Data Transmit Register              \n", FA_QSPI_SPIDTR);
 
 //rdata = axi_read(FA_QSPI, FA_QSPI_SPIDRR, FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
 //printf("(h%4x) QSPI SPIDRR = h%8x  (RO)    SPI Data Receive Register               \n", FA_QSPI_SPIDRR, rdata);
-  printf("(h%4x) QSPI SPIDRR = not_read   (RO)    SPI Data Receive Register (issues SLAVE_ERROR if read when empty)\n", FA_QSPI_SPIDRR); 
+  printf("(h%4x) QSPI SPIDRR = not_read   (RO)    SPI Data Receive Register (issues SLAVE_ERROR if read when empty)\n", FA_QSPI_SPIDRR);
 
   rdata = axi_read(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
   printf("(h%4x) QSPI SPISSR = h%8x  (RW)    SPI Slave Select Register               \n", FA_QSPI_SPISSR, rdata);
@@ -725,27 +833,27 @@ void read_QSPI_regs()    // Read and display all AXI readable registers in Quad 
 
 
 // --------------------------------------------------------------------------------------------------------
-// Setup QSPI registers for 9V3 board usage 
+// Setup QSPI registers for 9V3 board usage
 //   per Quad SPI spec (pg153-axi-quad-spi.pdf, section "Protocol Description", sub-section "Dual/Quad SPI Mode Transactions"
 void QSPI_setup()
 { u32           axi_wdata;  // AXI4-Lite data bus width is 4 bytes
   u32           axi_rdata;
 //  unsigned char rdata[];      // use malloc to allocate arrays of bytes to write and read into QSPI DTR and DRR buffers
 //  unsigned char wdata[];
- 
+
   // SRR (Software Reset Register) [Write only]
   // - Reset core to start
   axi_wdata = 0x0000000A;
-  axi_write(FA_QSPI, FA_QSPI_SRR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "QSPI_setup: write SRR (reset core to start)"); 
+  axi_write(FA_QSPI, FA_QSPI_SRR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "QSPI_setup: write SRR (reset core to start)");
 
   // Issue axi_read to any register to provide delay for reset (need 16 cycles minimum for reset to take effect, assume this takes more time than that)
-  axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "QSPI_setup: axi_read provides delay, allowing QSPI core to reset"); 
+  axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "QSPI_setup: axi_read provides delay, allowing QSPI core to reset");
 
   // DGIER (Device Global Interrupt Enable Register)
   // -    [31] Global Interrupt Enable (0 = disabled)
   // - [30: 0] Reserved
-  axi_wdata = 0x00000000; 
-  axi_write(FA_QSPI, FA_QSPI_DGIER, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "QSPI_setup: write DGIER  (disable global interrupt)"); 
+  axi_wdata = 0x00000000;
+  axi_write(FA_QSPI, FA_QSPI_DGIER, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "QSPI_setup: write DGIER  (disable global interrupt)");
 
   // IPIER (IP Interrupt Enable Register)
   // - [31:14] Reserved
@@ -765,28 +873,26 @@ void QSPI_setup()
   // -    [ 0] Mode Fault Error
   // - Set all bits to 0 to disable interrupt generation for the condition.
   axi_wdata = 0x00000000;
-  axi_write(FA_QSPI, FA_QSPI_IPIER, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "QSPI_setup: write IPIER  (disable all interrupts)"); 
+  axi_write(FA_QSPI, FA_QSPI_IPIER, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "QSPI_setup: write IPIER  (disable all interrupts)");
 
   // IPISR (IP Interrupt Status Register) - Clear any pending flags
-  axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "QSPI_setup: read  IPISR  (see what error flags are set before writing DTR)"); 
-  axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, axi_rdata, "QSPI_setup: write back IPISR  (clear all error flags before writing DTR)"); 
-  axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "QSPI_setup: read  IPISR  (check error flags are clear before writing DTR)"); 
+  axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "QSPI_setup: read  IPISR  (see what error flags are set before writing DTR)");
+  axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, axi_rdata, "QSPI_setup: write back IPISR  (clear all error flags before writing DTR)");
+  axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "QSPI_setup: read  IPISR  (check error flags are clear before writing DTR)");
   if (axi_rdata != 0x00000000) {
     ERRORS_DETECTED++;
     printf("(QSPI_setup):  *** ERROR - IPISR is remains non-zero after clearing procedure (h%8x) ***\n", axi_rdata);
-  }    
- 
+  }
+
   return;
-} 
-
-
+}
 
 // --------------------------------------------------------------------------------------------------------
 char* flash_devsel_as_str(u32 flash_devsel)  // Convert FLASH device select value to string for nicer printing
 { if (flash_devsel == SPISSR_SEL_DEV1) return "DEV1";
   if (flash_devsel == SPISSR_SEL_DEV2) return "DEV2";
   if (flash_devsel == SPISSR_SEL_NONE) return "NONE";
-  
+
   ERRORS_DETECTED++;
   printf("(flash_devsel_as_str): ***ERROR - unrecognized flash_devsel (h%8x) ***\n", flash_devsel);
   return "<UNKNOWN>";
@@ -799,7 +905,7 @@ char* fo_dir_as_str(int dir)  // Convert flash_op direction value to string for 
 { if (dir == FO_DIR_XCHG) return "XCHG ";
   if (dir == FO_DIR_RD  ) return "READ ";
   if (dir == FO_DIR_WR  ) return "WRITE";
-  
+
   ERRORS_DETECTED++;
   printf("(fo_dir_as_str): ***ERROR - unrecognized direction (%d) ***\n", dir);
   return "<UNKNOWN>";
@@ -826,7 +932,7 @@ void fo_wait_for_DTR_FIFO_empty()  // Wait for IPISR[2] to become 1 indicating D
   do {
       i++;
       sprintf(ds, "flash_op-fo_wait_for_DTR_FIFO_empty: read  IPISR  (wait for [2] to become 1 meaning DTR FIFO is empty - iteration %d", i);
-      axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, ds); 
+      axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, ds);
       TRC_AXI    = 0;  // Disable printing of subsequent iterations, want only one AXI_RD msg for this step
       TRC_CONFIG = 0;  // Disable printing of subsequent iterations, want only config msgs for one AXI_RD msg for this step
   } while (i < maxloops && ((axi_rdata & 0x00000004) == 0x00000000) );  // iterate while [2] = 0
@@ -836,10 +942,10 @@ void fo_wait_for_DTR_FIFO_empty()  // Wait for IPISR[2] to become 1 indicating D
     ERRORS_DETECTED++;
     printf("(flash_op-fo_wait_for_DTR_FIFO_empty):  *** ERROR - Poll of IPISR[2] waiting for DTR Empty interrupt exceeded max loop iterations (%d) ***\n", maxloops);
   } else {
-    if (debug == 1) printf("flash_op-fo_wait_for_DTR_FIFO_empty: DTR FIFO is empty after iteration %d, continue\n", i);  
+    if (debug == 1) printf("flash_op-fo_wait_for_DTR_FIFO_empty: DTR FIFO is empty after iteration %d, continue\n", i);
     sprintf(ds, "flash_op-fo_wait_for_DTR_FIFO_empty: write IPISR  (clear [2] to prepare for next write to DTR FIFO - after poll iteration %d", i);
     axi_wdata = 0x00000004;  // Clear bit [2] from 1 to 0 by writing to toggle it
-    axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, ds); 
+    axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, ds);
   }
   return;
 }
@@ -848,11 +954,11 @@ void fo_wait_for_DTR_FIFO_empty()  // Wait for IPISR[2] to become 1 indicating D
 
 // --------------------------------------------------------------------------------------------------------
 void fo_read_DRR(                     // Obtain shifted out data. Check that RX FIFO remains not empty for the correct number of data bytes.
-                  byte *drr_data      // Pointer to buffer that will hold DRR contents when function is complete 
+                  byte *drr_data      // Pointer to buffer that will hold DRR contents when function is complete
                 , int   load_bytes    // Number of bytes to read from DRR
                 , int   dir           // Skip some steps based on the direction of the FLASH operation (FO_DIR_XCHG, FO_DIR_RD, FO_DIR_WR)
                 )
-{ 
+{
   u32 axi_rdata;
   int i;
   int remaining_bytes;
@@ -864,9 +970,9 @@ void fo_read_DRR(                     // Obtain shifted out data. Check that RX 
     i = 0;    // pointer into return data array
     while (remaining_bytes > 0) {
 
-      if (FLASH_OP_CHECK == FO_CHK_ON) {  
+      if (FLASH_OP_CHECK == FO_CHK_ON) {
         // Check RX FIFO remains not empty
-        axi_rdata = axi_read(FA_QSPI, FA_QSPI_SPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op-fo_read_DRR: read  SPISR  (confirm RX FIFO still has a byte, [0] should be 0)"); 
+        axi_rdata = axi_read(FA_QSPI, FA_QSPI_SPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op-fo_read_DRR: read  SPISR  (confirm RX FIFO still has a byte, [0] should be 0)");
         if ((axi_rdata & 0x00000001) != 0x00000000) {   // bit [0] != 0
           ERRORS_DETECTED++;
           printf("(flash_op-fo_read_DRR):  *** ERROR - SPISR[0]=1 indicating RX FIFO Empty before reading data byte [%d] of [%d]\n", i, load_bytes-1);
@@ -880,7 +986,7 @@ void fo_read_DRR(                     // Obtain shifted out data. Check that RX 
         *(drr_data+i+1) = (byte) ((axi_rdata & 0x00FF0000) >> 16);
         *(drr_data+i+2) = (byte) ((axi_rdata & 0x0000FF00) >>  8);
         *(drr_data+i+3) = (byte) ((axi_rdata & 0x000000FF)      );
-        if (debug == 1) printf("flash_op-fo_read_DRR: SPIDRR = h%8X, drr_data[%3d to %3d] = h%2X %2X %2X %2X\n",  axi_rdata, i, i+3, 
+        if (debug == 1) printf("flash_op-fo_read_DRR: SPIDRR = h%8X, drr_data[%3d to %3d] = h%2X %2X %2X %2X\n",  axi_rdata, i, i+3,
           *(drr_data+i), *(drr_data+i+1), *(drr_data+i+2), *(drr_data+i+3) );
         remaining_bytes = remaining_bytes - 4;      // Reduce count of bytes to read yet
         i = i + 4;                                  // Point to next free byte location in drr_data
@@ -895,9 +1001,9 @@ void fo_read_DRR(                     // Obtain shifted out data. Check that RX 
       }
     }   // while (remaining_bytes > 0)
 
-    if (FLASH_OP_CHECK == FO_CHK_ON) {  
+    if (FLASH_OP_CHECK == FO_CHK_ON) {
       // Check that RX FIFO is empty now
-      axi_rdata = axi_read(FA_QSPI, FA_QSPI_SPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op-fo_read_DRR: read  SPISR  (confirm RX FIFO is empty after reading the expected number of data bytes)"); 
+      axi_rdata = axi_read(FA_QSPI, FA_QSPI_SPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op-fo_read_DRR: read  SPISR  (confirm RX FIFO is empty after reading the expected number of data bytes)");
       if ((axi_rdata & 0x00000001) != 0x00000001) {   // bit [0] != 1
         ERRORS_DETECTED++;
         printf("(flash_op-fo_read_DRR):  *** ERROR - SPISR[0]=0 indicating RX FIFO is not Empty after all %d bytes were read\n", load_bytes);
@@ -907,7 +1013,7 @@ void fo_read_DRR(                     // Obtain shifted out data. Check that RX 
   }  // ((dir == FO_DIR_XCHG || dir == FO_DIR_RD) || (dir == FO_DIR_WR && FLASH_OP_CHECK == FO_CHK_ON))
   else {
     // On an unchecked FLASH write, the shifted out data is ignored. Therefore skip reading DRR FIFO and fill in return array with h00.
-    if (debug == 1) printf("flash_op-fo_read_DRR: Skipping read of DRR FIFO, returning h00 in all bytes\n"); 
+    if (debug == 1) printf("flash_op-fo_read_DRR: Skipping read of DRR FIFO, returning h00 in all bytes\n");
     for (i=0; i < load_bytes; i++) {
        *(drr_data+i) = 0x00;
     }
@@ -921,7 +1027,7 @@ void fo_read_DRR(                     // Obtain shifted out data. Check that RX 
 // --------------------------------------------------------------------------------------------------------
 // FLASH OPeration
 void flash_op(                      // The SPI interface shifts data in while simultaneously shifting data out, thus "read" is the same as a "write".
-               u32  devsel          // Select FLASH device to target (use SPISSR_SEL_DEV1 or SPISSR_SEL_DEV2) 
+               u32  devsel          // Select FLASH device to target (use SPISSR_SEL_DEV1 or SPISSR_SEL_DEV2)
              , byte cmd             // Command to sent to FLASH
              , u32  addr            // 0-4 bytes of address to target in FLASH (1B addr in [7:0], 2B in [15:0], 3B in [23:0], 4B in [31:0])
              , int  num_addr        // Number of address bytes (usually 0 or 3 depending on cmd, 3 max)
@@ -935,11 +1041,11 @@ void flash_op(                      // The SPI interface shifts data in while si
 {
   int  debug = 0;                // Internal debug. 0=no debug msgs, 1=some debug msgs, 2=all debug msgs
 
-  u32  axi_wdata, axi_rdata;              
+  u32  axi_wdata, axi_rdata;
   int  i, j;
 
   byte header_array[16];                  // 1 cmd + 3 addr + 10 dummy (max) + pad with first few data bytes
-                                          //   Why 16? It is the minimum DTR FIFO size in the Quad SPI core. Also it is a multiple of 4 which 
+                                          //   Why 16? It is the minimum DTR FIFO size in the Quad SPI core. Also it is a multiple of 4 which
                                           //   allows config_write operations to use the Byte Expander to send 4 bytes at a time to the DTR FIFO.
   int  header_bytes;                      // Number of bytes in header_array to send
   int  header_ptr;                        // Index into header_array
@@ -998,26 +1104,26 @@ void flash_op(                      // The SPI interface shifts data in while si
     printf("(flash_op):  *** ERROR - num_bytes (%d) is less than 0 ***\n", num_bytes);
     return;   // ABORT
   }
- 
+
   // Activate device select for targeted device
   axi_wdata = devsel;
-  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (activate device select for targeted device)"); 
+  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (activate device select for targeted device)");
 
   // SPICR (SPI Control Register) - default h180, [8]=disable master transactions, [6:5]=reset RX,TX FIFOs, [2]=master config, [1]=SPI enable
   axi_wdata = 0x00000166;  // {22'b0,10'b01_0110_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Reset RX & TX FIFOs)"); 
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Reset RX & TX FIFOs)");
 
   // SPICR (SPI Control Register) - [6:5]=unreset RX,TX FIFOs
   axi_wdata = 0x00000106;  // {22'b0,10'b01_0000_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Remove reset from RX & TX FIFOs)"); 
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Remove reset from RX & TX FIFOs)");
 
   // If all works properly, IPISR[2] (DTR Empty) should be 0 after FIFO reset
   if (FLASH_OP_CHECK == FO_CHK_ON) {
-    axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op: read  IPISR  (check bit [2] (DTR Empty) is 0 after FIFO reset)"); 
+    axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op: read  IPISR  (check bit [2] (DTR Empty) is 0 after FIFO reset)");
     if ((axi_rdata & 0x00000004) != 0x00000000) {  // If [2] of [31:0] is not set
       ERRORS_DETECTED++;
       printf("(flash_op):  *** ERROR - IPISR[2] (DTR Empty) was set after FIFO reset (h%8x) ***\n", axi_rdata);
-      axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, (axi_rdata & 0x00000004), "flash_op: write IPISR  (clear bit [2] (DTR Empty) before continuing)"); 
+      axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, (axi_rdata & 0x00000004), "flash_op: write IPISR  (clear bit [2] (DTR Empty) before continuing)");
     }
   }
 
@@ -1026,21 +1132,21 @@ void flash_op(                      // The SPI interface shifts data in while si
   header_array[0] = cmd;
   switch (num_addr)
     { case 0: header_ptr = 1;
-              break; 
+              break;
       case 1: header_array[1] = (byte)  (addr & 0x000000FF);               // Cast to byte to reduce from 32 bits to 8 bits
               header_ptr = 2;
               break;
-      case 2: header_array[1] = (byte) ((addr & 0x0000FF00) >>  8); 
+      case 2: header_array[1] = (byte) ((addr & 0x0000FF00) >>  8);
               header_array[2] = (byte)  (addr & 0x000000FF);
               header_ptr = 3;
               break;
-      case 3: header_array[1] = (byte) ((addr & 0x00FF0000) >> 16); 
+      case 3: header_array[1] = (byte) ((addr & 0x00FF0000) >> 16);
               header_array[2] = (byte) ((addr & 0x0000FF00) >>  8);
               header_array[3] = (byte)  (addr & 0x000000FF);
               header_ptr = 4;
               break;
       case 4: header_array[1] = (byte) ((addr & 0xFF000000) >> 24);
-              header_array[2] = (byte) ((addr & 0x00FF0000) >> 16); 
+              header_array[2] = (byte) ((addr & 0x00FF0000) >> 16);
               header_array[3] = (byte) ((addr & 0x0000FF00) >>  8);
               header_array[4] = (byte)  (addr & 0x000000FF);
               header_ptr = 5;
@@ -1049,7 +1155,7 @@ void flash_op(                      // The SPI interface shifts data in while si
                printf("(flash_op):  *** ERROR - num_addr (%d) is not in the range 0,1,2,3,4 ***\n", num_addr);
                return;   // ABORT
     }
-  for (i = 0; i < num_dummy; i++) {   // Fill dummy cycles with pad bytes 
+  for (i = 0; i < num_dummy; i++) {   // Fill dummy cycles with pad bytes
     header_array[header_ptr] = 0x00;
     header_ptr++;
   }
@@ -1065,7 +1171,7 @@ void flash_op(                      // The SPI interface shifts data in while si
     remaining_total_bytes = 0;                  // There are no more data bytes to send (overall)
     remaining_fifo_bytes  = 0;                  // There are no more data bytes to send (to fill the FIFO on this iteration)
   }
-  else {                                                           // There is more data to send than remains in the header. 
+  else {                                                           // There is more data to send than remains in the header.
     for (i=0; i < remaining_header_bytes; i++) {                   // Fill up the remaining space in the header array with data.
       header_array[header_ptr] = *(wdata + wdata_ptr);
       header_ptr++;
@@ -1090,35 +1196,35 @@ void flash_op(                      // The SPI interface shifts data in while si
   for (i=0; (i+3) < header_bytes; i=i+4) {  // Load groups of 4 bytes first from header array
     axi_wdata = (header_array[i] << 24) | (header_array[i+1] << 16) | (header_array[i+2] << 8) | header_array[i+3];
     sprintf(ds,"flash_op: write SPIDTR  (header_array[%d:%d])", i, i+3);
-    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);  
+    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);
   }
   while (i < header_bytes) {                // Load individual bytes that may remain in header array
     axi_wdata = 0x00000000 | header_array[i];
     sprintf(ds,"flash_op: write SPIDTR  (header_array[%d])", i);
-    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);  
+    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);
     i++;
   }
-  fifo_bytes = i;  // Note: max size of header_array = 16 which is smallest DTR FIFO allowed, so no risk of overrun when loading header  
+  fifo_bytes = i;  // Note: max size of header_array = 16 which is smallest DTR FIFO allowed, so no risk of overrun when loading header
   if (debug >= 2) printf("flash_op (debug) - (at A) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
   while (remaining_total_bytes > 0 && remaining_fifo_bytes > 0) {   // Fill FIFO with as much remaining data as possible
     if (remaining_total_bytes >= 4 && remaining_fifo_bytes >= 4) {
       axi_wdata = (*(wdata+wdata_ptr) << 24) | (*(wdata+wdata_ptr+1) << 16) | (*(wdata+wdata_ptr+2) << 8) | *(wdata+wdata_ptr+3);
       sprintf(ds,"flash_op: write SPIDTR  (wdata[%d:%d])", wdata_ptr, wdata_ptr+3);
-      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);  
+      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);
       wdata_ptr             = wdata_ptr + 4;
       remaining_total_bytes = remaining_total_bytes - 4;
       remaining_fifo_bytes  = remaining_fifo_bytes  - 4;
       fifo_bytes            = fifo_bytes + 4;
-    } 
+    }
     else {   // less than 4 bytes to send or less than 4 bytes in DTR FIFO
       axi_wdata = 0x00000000 | wdata[wdata_ptr];
       sprintf(ds,"flash_op: write SPIDTR  (wdata[%d])", wdata_ptr);
-      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);  
+      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);
       wdata_ptr++;
       remaining_total_bytes--;
       remaining_fifo_bytes--;
       fifo_bytes++;
-    } 
+    }
     if (debug >= 2) printf("flash_op (debug) - (at B) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
   }
 
@@ -1126,33 +1232,33 @@ void flash_op(                      // The SPI interface shifts data in while si
   // Instruct QSPI to send DTR contents to FLASH
   // SPICR (SPI Control Register) - enable Master to drive SPI (starts CCLK and transfer) by disabling Master Transaction Inhibit (bit [8])
   axi_wdata = 0x00000006;  // {22'b0,10'b00_0000_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=0 to enable master to drive SPI)"); 
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=0 to enable master to drive SPI)");
 
   // Wait for DTR contents to be transferred. When complete, DRR FIFO contains shifted out bytes.
   fo_wait_for_DTR_FIFO_empty();
 
   // Read specified number of bytes from DRR FIFO
-  fo_read_DRR(drr_data, fifo_bytes, dir);               
+  fo_read_DRR(drr_data, fifo_bytes, dir);
 
   // Transfer read bytes to return array, removing cmd, addr, and dummy bytes as needed
   rdata_ptr  = 0;              // Initialize array pointer (once at first time reading DRR FIFO)
   drr_ptr    = 0;              // Initialize array pointer (every time fo_read_DRR() is called)
   skip_bytes = 1 + num_addr + (num_dummy/2);   // Ignore the first bytes returned if they are for (cmd, addr, dummy) cycles
     // IMPORTANT: The assumption is dummy cycles only occur on bulk data movement which will use Quad mode on the SPI bus. This means
-    //            every dummy cycle captures 4 bits from the FLASH, so 2 cycles equal a byte. Furthermore it assumes num_dummy will 
+    //            every dummy cycle captures 4 bits from the FLASH, so 2 cycles equal a byte. Furthermore it assumes num_dummy will
     //            be an even number, which from the Micron spec appears to be true in all cases. If dummy cycles are used with non-Quad SPI
     //            commands, then another solution needs to be found; like determining the number of dummy bytes from a look up table
     //            based on the 'cmd' value (which is how the Quad SPI IP core does it).
-  drr_ptr    = skip_bytes;     
+  drr_ptr    = skip_bytes;
   for (i = skip_bytes; i < fifo_bytes; i++) {       // Starting with first real data byte, copy read byts into the return data array
     *(rdata + rdata_ptr) = *(drr_data + drr_ptr);
-    if (debug >= 2) printf("flash_op (debug): DATA COPY (header) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n", 
+    if (debug >= 2) printf("flash_op (debug): DATA COPY (header) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n",
       rdata_ptr, *(rdata+rdata_ptr), drr_ptr, *(drr_data+drr_ptr) );
     rdata_ptr++;
     drr_ptr++;
-  }  
+  }
 
-  // while (remaining_total_bytes > 0), 
+  // while (remaining_total_bytes > 0),
   while (remaining_total_bytes > 0) {
     if (debug >= 2) printf("flash_op (debug) - (at C) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
     remaining_fifo_bytes = FIFO_DEPTH;   // Clear counts relative to the FIFO
@@ -1161,21 +1267,21 @@ void flash_op(                      // The SPI interface shifts data in while si
       if (remaining_total_bytes >= 4 && remaining_fifo_bytes >= 4) {
         axi_wdata = (*(wdata+wdata_ptr) << 24) | (*(wdata+wdata_ptr+1) << 16) | (*(wdata+wdata_ptr+2) << 8) | *(wdata+wdata_ptr+3);
         sprintf(ds,"flash_op: write SPIDTR  (wdata[%d:%d])", wdata_ptr, wdata_ptr+3);
-        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);  
+        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);
         wdata_ptr             = wdata_ptr + 4;
         remaining_total_bytes = remaining_total_bytes - 4;
         remaining_fifo_bytes  = remaining_fifo_bytes  - 4;
         fifo_bytes            = fifo_bytes + 4;
-      } 
+      }
       else {   // less than 4 bytes to send or less than 4 bytes in DTR FIFO
         axi_wdata = 0x00000000 | wdata[wdata_ptr];
         sprintf(ds,"flash_op: write SPIDTR  (wdata[%d])", wdata_ptr);
-        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);  
+        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);
         wdata_ptr++;
         remaining_total_bytes--;
         remaining_fifo_bytes--;
         fifo_bytes++;
-      } 
+      }
     }
     if (debug >= 2) printf("flash_op (debug) - (at D) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
 
@@ -1186,17 +1292,17 @@ void flash_op(                      // The SPI interface shifts data in while si
     fo_wait_for_DTR_FIFO_empty();
 
     // Read specified number of bytes from DRR FIFO
-    fo_read_DRR(drr_data, fifo_bytes, dir);               
+    fo_read_DRR(drr_data, fifo_bytes, dir);
 
     // Transfer read bytes to return array, removing cmd, addr, and dummy bytes as needed
     drr_ptr = 0;      // Initialize array pointer (every time fo_read_DRR() is called)
     for (i = 0; i < fifo_bytes; i++) {       // Append read bytes into the return data array
       *(rdata + rdata_ptr) = *(drr_data + drr_ptr);
-      if (debug >= 2) printf("flash_op (debug): DATA COPY (block data) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n", 
+      if (debug >= 2) printf("flash_op (debug): DATA COPY (block data) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n",
         rdata_ptr, *(rdata+rdata_ptr), drr_ptr, *(drr_data+drr_ptr) );
       rdata_ptr++;
       drr_ptr++;
-    }  
+    }
 
   } // while (remaining_total_bytes > 0) {
 
@@ -1205,11 +1311,11 @@ void flash_op(                      // The SPI interface shifts data in while si
 
   // SPICR (SPI Control Register) - disable master transactions
   axi_wdata = 0x00000106;  // {22'b0,10'b01_0000_0110};
-  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=1 to disable master transactions)"); 
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=1 to disable master transactions)");
 
   // When no more data to this device, disable chip select
-  axi_wdata = SPISSR_SEL_NONE;  
-  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (disable all chip selects)"); 
+  axi_wdata = SPISSR_SEL_NONE;
+  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (disable all chip selects)");
 
   if (TRC_FLASH == TRC_ON) {
     // Create printable string of read data
@@ -1231,19 +1337,345 @@ void flash_op(                      // The SPI interface shifts data in while si
   return;
 }
 
+
+// --------------------------------------------------------------------------------------------------------
+// FLASH OPeration
+void flash_op_verbose(                      // The SPI interface shifts data in while simultaneously shifting data out, thus "read" is the same as a "write".
+               u32  devsel          // Select FLASH device to target (use SPISSR_SEL_DEV1 or SPISSR_SEL_DEV2)
+             , byte cmd             // Command to sent to FLASH
+             , u32  addr            // 0-4 bytes of address to target in FLASH (1B addr in [7:0], 2B in [15:0], 3B in [23:0], 4B in [31:0])
+             , int  num_addr        // Number of address bytes (usually 0 or 3 depending on cmd, 3 max)
+             , int  num_dummy       // Number of dummy cycles (0 to 10 for Micron FLASH parts)
+             , int  num_bytes       // Number of data bytes, 0-N
+             , byte *wdata          // Reference to array of bytes to write to FLASH  (note: wdata and rdata arrays should be the same size)
+             , byte *rdata          // Reference to array of bytes to place data read from FLASH
+             , int  dir             // Skip some steps based on the direction of the FLASH operation (FO_DIR_XCHG, FO_DIR_RD, FO_DIR_WR)
+             , char *s              // Comment to be printed in trace string
+             )
+{
+  int  debug = 0;                // Internal debug. 0=no debug msgs, 1=some debug msgs, 2=all debug msgs
+
+  u32  axi_wdata, axi_rdata;
+  int  i, j;
+
+  byte header_array[16];                  // 1 cmd + 3 addr + 10 dummy (max) + pad with first few data bytes
+                                          //   Why 16? It is the minimum DTR FIFO size in the Quad SPI core. Also it is a multiple of 4 which
+                                          //   allows config_write operations to use the Byte Expander to send 4 bytes at a time to the DTR FIFO.
+  int  header_bytes;                      // Number of bytes in header_array to send
+  int  header_ptr;                        // Index into header_array
+  int  remaining_header_bytes;            // Number of free bytes remaining in header array
+
+  int  wdata_ptr, rdata_ptr;              // Index into wdata/rdata arrays where next byte should be written
+  int  remaining_total_bytes;             // Total number of bytes remaining to be sent to FLASH
+  int  remaining_fifo_bytes;              // Number of bytes remaining to be sent in this iteration of loading/sending the DTR FIFO
+
+  int  fifo_bytes;                        // How many bytes have been written into the DTR FIFO
+
+  char call_args[1024];                   // Buffers for easier printing
+  char ds[4096], ds_elt[10];
+
+  byte drr_data[FIFO_DEPTH];              // Temporary storage for data captured by DRR FIFO after shift to FLASH
+  int  drr_ptr;                           // Pointer into 'drr_data'
+  int  skip_bytes;                        // Number of bytes to skip over which contain shift out from cmd, addr, dummy cycles
+
+  // Save arguments as a string for easier printing later
+  sprintf(call_args,"devsel %s, cmd h%2X, addr h%8X, num_addr %2d, num_dummy %2d, num_bytes %d, dir %s <%s>",
+    flash_devsel_as_str(devsel), cmd, addr, num_addr, num_dummy, num_bytes, fo_dir_as_str(dir), s);
+
+  if (TRC_FLASH == TRC_ON) {
+    // Create printable string of write data (up to first 16 bytes)
+    if (num_bytes <= 16)
+      j = num_bytes;
+    else
+      j = 16;
+    ds[0] = '\0';
+    for (i = 0; i < j; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), "%2.2X ", wdata[i]);
+      strcat(ds, ds_elt);
+    }
+    if (num_bytes > 16)
+      strcat(ds, "...");
+    printf("trace  flash_op          (hex) wdata[] = %s\n", ds);
+  }
+
+  // Check validity of arguements
+  if (num_addr > 4) {
+    ERRORS_DETECTED++;
+    printf("(flash_op):  *** ERROR - num_addr (%d) is not in the range 0,1,2,3,4 ***\n", num_addr);
+    return;   // ABORT
+  }
+  if (num_dummy > 10) {  // For Micron FLASH, largest number of dummy cycles is 10
+    ERRORS_DETECTED++;
+    printf("(flash_op):  *** ERROR - num_dummy (%d) is not in the range 0 through 10 inclusive ***\n", num_dummy);
+    return;   // ABORT
+  }
+  if (num_bytes < 0) {
+    ERRORS_DETECTED++;
+    printf("(flash_op):  *** ERROR - num_bytes (%d) is less than 0 ***\n", num_bytes);
+    return;   // ABORT
+  }
+
+  printf("Flash OP checkpoint 1: About to do FPGA axi ops\n");
+  // Activate device select for targeted device
+  axi_wdata = devsel;
+  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (activate device select for targeted device)");
+
+  // SPICR (SPI Control Register) - default h180, [8]=disable master transactions, [6:5]=reset RX,TX FIFOs, [2]=master config, [1]=SPI enable
+  axi_wdata = 0x00000166;  // {22'b0,10'b01_0110_0110};
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Reset RX & TX FIFOs)");
+
+  // SPICR (SPI Control Register) - [6:5]=unreset RX,TX FIFOs
+  axi_wdata = 0x00000106;  // {22'b0,10'b01_0000_0110};
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  (Remove reset from RX & TX FIFOs)");
+
+  printf("Flash OP checkpoint 2: Got through first axi writes OK\n");
+
+  // If all works properly, IPISR[2] (DTR Empty) should be 0 after FIFO reset
+  if (FLASH_OP_CHECK == FO_CHK_ON) {
+    axi_rdata = axi_read(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, "flash_op: read  IPISR  (check bit [2] (DTR Empty) is 0 after FIFO reset)");
+    if ((axi_rdata & 0x00000004) != 0x00000000) {  // If [2] of [31:0] is not set
+      ERRORS_DETECTED++;
+      printf("(flash_op):  *** ERROR - IPISR[2] (DTR Empty) was set after FIFO reset (h%8x) ***\n", axi_rdata);
+      axi_write(FA_QSPI, FA_QSPI_IPISR, FA_EXP_OFF, FA_EXP_0123, (axi_rdata & 0x00000004), "flash_op: write IPISR  (clear bit [2] (DTR Empty) before continuing)");
+    }
+  }
+
+  printf("Flash OP checkpoint 3: Got through DTR empty check OK\n");
+
+  //printf("Flash op checkpoint 1\n");
+  // Assemble header array containing cmd, addr, dummy cycles, and data to pad it
+  header_array[0] = cmd;
+  switch (num_addr)
+    { case 0: header_ptr = 1;
+              break;
+      case 1: header_array[1] = (byte)  (addr & 0x000000FF);               // Cast to byte to reduce from 32 bits to 8 bits
+              header_ptr = 2;
+              break;
+      case 2: header_array[1] = (byte) ((addr & 0x0000FF00) >>  8);
+              header_array[2] = (byte)  (addr & 0x000000FF);
+              header_ptr = 3;
+              break;
+      case 3: header_array[1] = (byte) ((addr & 0x00FF0000) >> 16);
+              header_array[2] = (byte) ((addr & 0x0000FF00) >>  8);
+              header_array[3] = (byte)  (addr & 0x000000FF);
+              header_ptr = 4;
+              break;
+      case 4: header_array[1] = (byte) ((addr & 0xFF000000) >> 24);
+              header_array[2] = (byte) ((addr & 0x00FF0000) >> 16);
+              header_array[3] = (byte) ((addr & 0x0000FF00) >>  8);
+              header_array[4] = (byte)  (addr & 0x000000FF);
+              header_ptr = 5;
+              break;
+      default: ERRORS_DETECTED++;   // Shouldn't happen if argument check above is in place
+               printf("(flash_op):  *** ERROR - num_addr (%d) is not in the range 0,1,2,3,4 ***\n", num_addr);
+               return;   // ABORT
+    }
+  for (i = 0; i < num_dummy; i++) {   // Fill dummy cycles with pad bytes
+    header_array[header_ptr] = 0x00;
+    header_ptr++;
+  }
+  wdata_ptr = 0;                                // Initialize data array pointers
+  remaining_header_bytes = 16 - header_ptr;     // Determine amount of space left in header
+  if (num_bytes <= remaining_header_bytes) {    // There is room in the header for all data bytes (i.e. cmd has 1 byte of data)
+    for (i=0; i < num_bytes; i++) {             // Copy all data into header array
+      header_array[header_ptr] = *(wdata + wdata_ptr);
+      header_ptr++;
+      wdata_ptr++;
+    }
+    header_bytes = header_ptr;
+    remaining_total_bytes = 0;                  // There are no more data bytes to send (overall)
+    remaining_fifo_bytes  = 0;                  // There are no more data bytes to send (to fill the FIFO on this iteration)
+  }
+  else {                                                           // There is more data to send than remains in the header.
+    for (i=0; i < remaining_header_bytes; i++) {                   // Fill up the remaining space in the header array with data.
+      header_array[header_ptr] = *(wdata + wdata_ptr);
+      header_ptr++;
+      wdata_ptr++;
+    }
+    header_bytes = header_ptr;
+    remaining_total_bytes = num_bytes  - remaining_header_bytes;   // Number of bytes to send yet (overall)
+    remaining_fifo_bytes  = FIFO_DEPTH - header_bytes;             // Number of bytes to send yet (to fill the FIFO on this iteration)
+  }
+  if (debug >= 1) {   // print header_array
+    ds[0] = '\0';
+    for (i = 0; i < header_ptr; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), "%2.2X ", header_array[i]);
+      strcat(ds, ds_elt);
+    }
+    printf("flash_op (debug): header_ptr = %d, wdata_ptr = %d, header_bytes = %d, remaining_total_bytes = %d, remaining_fifo_bytes = %d\n",
+	   header_ptr, wdata_ptr, header_bytes, remaining_total_bytes, remaining_fifo_bytes);
+    printf("flash_op (debug): header_array[0:%d] = %s\n", header_bytes-1, ds);
+  }
+
+  printf("Flash OP checkpoint 4: Got through Bus calculations OK\n");
+
+  // With Slave Select off, write first set of bytes, containing header and as many additional data as DTR FIFO can hold
+  for (i=0; (i+3) < header_bytes; i=i+4) {  // Load groups of 4 bytes first from header array
+    axi_wdata = (header_array[i] << 24) | (header_array[i+1] << 16) | (header_array[i+2] << 8) | header_array[i+3];
+    sprintf(ds,"flash_op: write SPIDTR  (header_array[%d:%d])", i, i+3);
+    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);
+  }
+  while (i < header_bytes) {                // Load individual bytes that may remain in header array
+    axi_wdata = 0x00000000 | header_array[i];
+    sprintf(ds,"flash_op: write SPIDTR  (header_array[%d])", i);
+    axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);
+    i++;
+  }
+  printf("Flash OP checkpoint 5: Loaded bytes into header array OK\n");
+  fifo_bytes = i;  // Note: max size of header_array = 16 which is smallest DTR FIFO allowed, so no risk of overrun when loading header
+  if (debug >= 2) printf("flash_op (debug) - (at A) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
+  while (remaining_total_bytes > 0 && remaining_fifo_bytes > 0) {   // Fill FIFO with as much remaining data as possible
+    if (remaining_total_bytes >= 4 && remaining_fifo_bytes >= 4) {
+      axi_wdata = (*(wdata+wdata_ptr) << 24) | (*(wdata+wdata_ptr+1) << 16) | (*(wdata+wdata_ptr+2) << 8) | *(wdata+wdata_ptr+3);
+      sprintf(ds,"flash_op: write SPIDTR  (wdata[%d:%d])", wdata_ptr, wdata_ptr+3);
+      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);
+      wdata_ptr             = wdata_ptr + 4;
+      remaining_total_bytes = remaining_total_bytes - 4;
+      remaining_fifo_bytes  = remaining_fifo_bytes  - 4;
+      fifo_bytes            = fifo_bytes + 4;
+    }
+    else {   // less than 4 bytes to send or less than 4 bytes in DTR FIFO
+      axi_wdata = 0x00000000 | wdata[wdata_ptr];
+      sprintf(ds,"flash_op: write SPIDTR  (wdata[%d])", wdata_ptr);
+      axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);
+      wdata_ptr++;
+      remaining_total_bytes--;
+      remaining_fifo_bytes--;
+      fifo_bytes++;
+    }
+    if (debug >= 2) printf("flash_op (debug) - (at B) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
+  }
+  printf("Flash OP checkpoint 6: Finished loading DTR Fifo OK\n");
+  //printf("Flash op checkpoint 2\n");
+  // Instruct QSPI to send DTR contents to FLASH
+  // SPICR (SPI Control Register) - enable Master to drive SPI (starts CCLK and transfer) by disabling Master Transaction Inhibit (bit [8])
+  axi_wdata = 0x00000006;  // {22'b0,10'b00_0000_0110};
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=0 to enable master to drive SPI)");
+
+  printf("Flash OP checkpoint 7: Waiting for DTR empty\n");
+  // Wait for DTR contents to be transferred. When complete, DRR FIFO contains shifted out bytes.
+  fo_wait_for_DTR_FIFO_empty();
+
+  printf("Flash OP checkpoint 8: Reading back from DRR Fifo\n");
+  // Read specified number of bytes from DRR FIFO
+  fo_read_DRR(drr_data, fifo_bytes, dir);
+
+  // Transfer read bytes to return array, removing cmd, addr, and dummy bytes as needed
+  rdata_ptr  = 0;              // Initialize array pointer (once at first time reading DRR FIFO)
+  drr_ptr    = 0;              // Initialize array pointer (every time fo_read_DRR() is called)
+  skip_bytes = 1 + num_addr + (num_dummy/2);   // Ignore the first bytes returned if they are for (cmd, addr, dummy) cycles
+    // IMPORTANT: The assumption is dummy cycles only occur on bulk data movement which will use Quad mode on the SPI bus. This means
+    //            every dummy cycle captures 4 bits from the FLASH, so 2 cycles equal a byte. Furthermore it assumes num_dummy will
+    //            be an even number, which from the Micron spec appears to be true in all cases. If dummy cycles are used with non-Quad SPI
+    //            commands, then another solution needs to be found; like determining the number of dummy bytes from a look up table
+    //            based on the 'cmd' value (which is how the Quad SPI IP core does it).
+  drr_ptr    = skip_bytes;
+  for (i = skip_bytes; i < fifo_bytes; i++) {       // Starting with first real data byte, copy read byts into the return data array
+    *(rdata + rdata_ptr) = *(drr_data + drr_ptr);
+    if (debug >= 2) printf("flash_op (debug): DATA COPY (header) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n",
+      rdata_ptr, *(rdata+rdata_ptr), drr_ptr, *(drr_data+drr_ptr) );
+    rdata_ptr++;
+    drr_ptr++;
+  }
+
+  printf("Flash OP checkpoint 9: About to do drain DRR fifo\n");
+
+  while (remaining_total_bytes > 0) {
+    if (debug >= 2) printf("flash_op (debug) - (at C) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
+    remaining_fifo_bytes = FIFO_DEPTH;   // Clear counts relative to the FIFO
+    fifo_bytes = 0;
+    while (remaining_total_bytes > 0 && remaining_fifo_bytes > 0) {   // Fill FIFO with as much remaining data as possible
+      if (remaining_total_bytes >= 4 && remaining_fifo_bytes >= 4) {
+        axi_wdata = (*(wdata+wdata_ptr) << 24) | (*(wdata+wdata_ptr+1) << 16) | (*(wdata+wdata_ptr+2) << 8) | *(wdata+wdata_ptr+3);
+        sprintf(ds,"flash_op: write SPIDTR  (wdata[%d:%d])", wdata_ptr, wdata_ptr+3);
+        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_ON, FA_EXP_3210, axi_wdata, ds);
+        wdata_ptr             = wdata_ptr + 4;
+        remaining_total_bytes = remaining_total_bytes - 4;
+        remaining_fifo_bytes  = remaining_fifo_bytes  - 4;
+        fifo_bytes            = fifo_bytes + 4;
+      }
+      else {   // less than 4 bytes to send or less than 4 bytes in DTR FIFO
+        axi_wdata = 0x00000000 | wdata[wdata_ptr];
+        sprintf(ds,"flash_op: write SPIDTR  (wdata[%d])", wdata_ptr);
+        axi_write(FA_QSPI, FA_QSPI_SPIDTR, FA_EXP_OFF, FA_EXP_3210, axi_wdata, ds);
+        wdata_ptr++;
+        remaining_total_bytes--;
+        remaining_fifo_bytes--;
+        fifo_bytes++;
+      }
+    }
+    if (debug >= 2) printf("flash_op (debug) - (at D) remaining_total_bytes = %d, remaining_fifo_bytes = %d\n", remaining_total_bytes, remaining_fifo_bytes);
+
+    // Instruct QSPI to send DTR contents to FLASH  (SKIP THIS STEP AFTER THE FIRST FIFO FILL)
+    // SPICR (SPI Control Register) - enable Master to drive SPI (starts CCLK and transfer) by disabling Master Transaction Inhibit (bit [8])
+
+    // Wait for DTR contents to be transferred. When complete, DRR FIFO contains shifted out bytes.
+    fo_wait_for_DTR_FIFO_empty();
+
+    // Read specified number of bytes from DRR FIFO
+    fo_read_DRR(drr_data, fifo_bytes, dir);
+
+    // Transfer read bytes to return array, removing cmd, addr, and dummy bytes as needed
+    drr_ptr = 0;      // Initialize array pointer (every time fo_read_DRR() is called)
+    for (i = 0; i < fifo_bytes; i++) {       // Append read bytes into the return data array
+      *(rdata + rdata_ptr) = *(drr_data + drr_ptr);
+      if (debug >= 2) printf("flash_op (debug): DATA COPY (block data) - rdata_ptr (%d) h%2X, drr_ptr (%d) h%2X\n",
+        rdata_ptr, *(rdata+rdata_ptr), drr_ptr, *(drr_data+drr_ptr) );
+      rdata_ptr++;
+      drr_ptr++;
+    }
+
+  } // while (remaining_total_bytes > 0)
+  printf("Flash OP checkpoint 10: Finished DRR drain\n");
+  //printf("Flash op checkpoint 3\n");
+  // At this point, all data is transferred, return the QSPI core back to an inactive state, awaiting the next command
+
+  // SPICR (SPI Control Register) - disable master transactions
+  axi_wdata = 0x00000106;  // {22'b0,10'b01_0000_0110};
+  axi_write(FA_QSPI, FA_QSPI_SPICR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPICR  ([8]=1 to disable master transactions)");
+
+  printf("Flash OP checkpoint 11: Finished write SPICR\n");
+
+  // When no more data to this device, disable chip select
+  axi_wdata = SPISSR_SEL_NONE;
+  axi_write(FA_QSPI, FA_QSPI_SPISSR, FA_EXP_OFF, FA_EXP_0123, axi_wdata, "flash_op: write SPISSR (disable all chip selects)");
+
+  printf("Flash OP checkpoint 12: Finished write SPISSR\n");
+
+  if (TRC_FLASH == TRC_ON) {
+    // Create printable string of read data
+    if (num_bytes <= 16)
+      j = num_bytes;
+    else
+      j = 16;
+    strcpy(ds, "rdata (hex)");
+    for (i = 0; i < j; i++) {
+      snprintf(ds_elt, sizeof(ds_elt), " %2.2X", *(rdata+i));
+      strcat(ds, ds_elt);
+    }
+    printf("trace  flash_op        %s\n\n", ds);
+  }
+  printf("Flash OP checkpoint 15: Finished debug\n");
+  FLASH_OP_COUNT++;    // Bump FLASH operation count
+  printf("Flash OP checkpoint 16: Finished op increment\n");
+  //printf("Flash op checkpoint 4\n");
+  printf("Flash OP checkpoint 17: Finished!\n");
+  return;
+}
+
 // --------------------------------------------------------------------------------------------------------
 void flash_setup(u32 devsel)   // Setup selected FLASH for 9V3 board usage (pass in SPISSR_SEL_DEV1 or SPISSR_SEL_DEV2)
 {
   char call_args[1024];        // Buffers for easier printing
-  byte rbyte;  
- 
-  // Save arguments as a string for easier printing later
-  sprintf(call_args,"devsel %s", flash_devsel_as_str(devsel)); 
+  byte rbyte;
 
-  if (TRC_FLASH_CMD == TRC_ON) printf("flash_setup: Start - %s\n", call_args); 
+  // Save arguments as a string for easier printing later
+  sprintf(call_args,"devsel %s", flash_devsel_as_str(devsel));
+
+  if (TRC_FLASH_CMD == TRC_ON) printf("flash_setup: Start - %s\n", call_args);
 
   // Reset FLASH by performing RESET ENABLE, followed by RESET MEMORY
-  fw_Reset_Enable(devsel); 
+  fw_Reset_Enable(devsel);
   fw_Reset_Memory(devsel);
   fw_Write_Enable(devsel); // Collin Nov 18th, add this for 9H3 card 4-byte addressing set
   fw_Enter_4B_Adress_Mode(devsel); //rblack must enter 4B address mode for any modern fpga/flash size.
@@ -1268,7 +1700,7 @@ void flash_setup(u32 devsel)   // Setup selected FLASH for 9V3 board usage (pass
   WORKAROUND_RELEASE_DQ(devsel);
 #endif
 
-  if (TRC_FLASH_CMD == TRC_ON) printf("flash_setup: End   - %s\n", call_args); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("flash_setup: End   - %s\n", call_args);
 
   return;
 }
@@ -1277,23 +1709,23 @@ void flash_setup(u32 devsel)   // Setup selected FLASH for 9V3 board usage (pass
 
 // --------------------------------------------------------------------------------------------------------
 void fr_wait_for_WRITE_IN_PROGRESS_to_clear(u32 devsel)     // Wait for 'WRITE IN PROGRESS' status bit to return to not busy state
-{ 
+{
   const int maxloops = 1000000;   // Number of iterations to try before timeout error
 
   int  debug = 0;              // 0=no iteration msgs, 1 = print msg on each iteration
   char call_args[1024];        // Buffers for easier printing
-  byte rbyte;  
+  byte rbyte;
   int  i;
 
   int  saved_TRC_FLASH_CMD;
   int  saved_TRC_FLASH;
   int  saved_TRC_AXI;
   int  saved_TRC_CONFIG;
- 
-  // Save arguments as a string for easier printing later
-  sprintf(call_args,"devsel %s", flash_devsel_as_str(devsel)); 
 
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_wait_for_WRITE_IN_PROGRESS_to_clear: Begin polling for STATUS[0] to become 0 on %s\n", call_args); 
+  // Save arguments as a string for easier printing later
+  sprintf(call_args,"devsel %s", flash_devsel_as_str(devsel));
+
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_wait_for_WRITE_IN_PROGRESS_to_clear: Begin polling for STATUS[0] to become 0 on %s\n", call_args);
 
   saved_TRC_FLASH_CMD = TRC_FLASH_CMD;
   saved_TRC_FLASH     = TRC_FLASH;
@@ -1304,21 +1736,21 @@ void fr_wait_for_WRITE_IN_PROGRESS_to_clear(u32 devsel)     // Wait for 'WRITE I
   while (i++ < maxloops && ((rbyte & 0x01) == 0x01) ) {    // Wait for IPISR[0] to become 0 indicating write is not in progress
     rbyte = fr_Status_Register(devsel);
     TRC_FLASH_CMD = TRC_OFF;           // Disable lower level tracing after first iteration
-    TRC_FLASH     = TRC_OFF;   
+    TRC_FLASH     = TRC_OFF;
     TRC_AXI       = TRC_OFF;
     TRC_CONFIG    = TRC_OFF;
     if (debug) printf("fr_wait_for_WRITE_IN_PROGRESS_to_clear: Poll loop iteration %d, rbyte = %2.2X\n", i, rbyte);
   }
 
   TRC_FLASH_CMD = saved_TRC_FLASH_CMD; // Restore trace levels
-  TRC_FLASH     = saved_TRC_FLASH;  
+  TRC_FLASH     = saved_TRC_FLASH;
   TRC_AXI       = saved_TRC_AXI;
   TRC_CONFIG    = saved_TRC_CONFIG;
 
   if (i >= maxloops) {
     ERRORS_DETECTED++;
     printf("fr_wait_for_WRITE_IN_PROGRESS_to_clear:  *** ERROR - Timeout, maximum iteration loops (%d) executed on %s ***\n", i, call_args);
-  } 
+  }
   else {
     if (TRC_FLASH_CMD) printf("fr_wait_for_WRITE_IN_PROGRESS_to_clear: (done) Found STATUS[0]=0 (Write In Progress is READY) after %d iterations\n", i);
   }
@@ -1337,11 +1769,11 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
   char ds[1024], ds_elt[10];
   int i;
   int saved_TRC_FLASH_CMD;
-  
+
   saved_TRC_FLASH_CMD = TRC_FLASH_CMD;
   TRC_FLASH_CMD = TRC_OFF;   // prevent register read calls from printing msgs
 
-  printf("read_flash_regs: ----- Display all readable FLASH registers in device %s -----\n", flash_devsel_as_str(devsel) ); 
+  printf("read_flash_regs: ----- Display all readable FLASH registers in device %s -----\n", flash_devsel_as_str(devsel) );
 
   rbyte = fr_Status_Register(devsel);
   printf("   h%2.2X      STATUS REGISTER\n", rbyte);
@@ -1357,7 +1789,7 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
 
   rbyte = fr_Volatile_Configuration_Register(devsel);
   printf("   h%2.2X      VOLATILE CONFIGURATION REGISTER\n", rbyte);
-  
+
   rbyte = fr_Enhanced_Volatile_Configuration_Register(devsel);
   printf("   h%2.2X      ENHANCED VOLATILE CONFIGURATION REGISTER\n", rbyte);
 
@@ -1382,9 +1814,9 @@ void read_flash_regs(u32 devsel)    // Read all registers in the targeted FLASH 
 // --------------------------------------------------------------------------------------------------------
 // FLASH access functions notes
 // - The idea is to pass different options into 'flash_op' that are tailored to a specific FLASH facility
-//   access. This simplifies the user's code as the only need to call the function for the register of 
-//   interest without having to know the details of opcode, dummy cycles, etc. for the command. 
-// - Some FLASH facilities have Read Only, Write Only or Read/Write via a "shift exchange" of data. 
+//   access. This simplifies the user's code as the only need to call the function for the register of
+//   interest without having to know the details of opcode, dummy cycles, etc. for the command.
+// - Some FLASH facilities have Read Only, Write Only or Read/Write via a "shift exchange" of data.
 //   some steps in 'flash_op' can be skipped if there is knowledge of which direction the access intends
 //   to use. The skipped steps reduce the number of AXI, and thus config_*, operations that occur so can
 //   have a noticeable performance impact at run time.
@@ -1408,14 +1840,14 @@ byte u32tobyte(u32 x)                   // Simple converter from u32 to byte typ
 }
 
 
- 
-int check_TRC_FLASH_CMD()               // Helper function for read Flash functions  
+
+int check_TRC_FLASH_CMD()               // Helper function for read Flash functions
   // Determine if TRC_FLASH_CMD is on, and if so whether lower trace levels are active or not.
   // Use this on 'read' FLASH commands to know whether to print messages before or after 'flash_op' is called.
   // If no lower level trace is on, then defer printing the TRC_FLASH_CMD message until after the read data is available.
   // However if any lower trace msgs will be printed, then print before and after so lower msgs will have a start and end marker.
   // Returns: (0=none are on so suppress begining message, 1=at least one is active so print both start and end messages)
-{ 
+{
   if (TRC_FLASH_CMD == TRC_ON && (TRC_FLASH == TRC_ON || TRC_AXI == TRC_ON || TRC_CONFIG == TRC_ON) ) {
     return 1;
   } else {
@@ -1429,8 +1861,8 @@ int check_TRC_FLASH_CMD()               // Helper function for read Flash functi
 void fw_Reset_Enable(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Reset_Enable: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Reset_Enable: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x66, 0x00000000, 0       , 0        , 0        , wary   , rary   , FO_DIR_WR, "RESET ENABLE");
   return;
 }
@@ -1441,8 +1873,8 @@ void fw_Reset_Enable(u32 devsel)
 void fw_Reset_Memory(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Reset_Memory: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Reset_Memory: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x99, 0x00000000, 0       , 0        , 0        , wary   , rary   , FO_DIR_WR, "RESET MEMORY");
   return;
 }
@@ -1460,8 +1892,8 @@ return;
 void fw_Write_Enable(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Write_Enable: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Write_Enable: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x06, 0x00000000, 0       , 0        , 0        , wary   , rary   , FO_DIR_WR, "WRITE ENABLE");
   return;
 }
@@ -1472,11 +1904,11 @@ void fw_Write_Enable(u32 devsel)
 byte fr_Enhanced_Volatile_Configuration_Register(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  wary[0] = 0x00;    
-  if (check_TRC_FLASH_CMD()) printf("fr_Enhanced_Volatile_Configuration_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  wary[0] = 0x00;
+  if (check_TRC_FLASH_CMD()) printf("fr_Enhanced_Volatile_Configuration_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x65, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_RD, "READ ENHANCED VOLATILE CONFIGURATION REGISTER");
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Enhanced_Volatile_Configuration_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Enhanced_Volatile_Configuration_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]);
   return rary[0];
 }
 // --------------------------------------------------------------------------------------------------------
@@ -1484,8 +1916,8 @@ void fw_Enhanced_Volatile_Configuration_Register(u32 devsel, byte wdata)
 { byte wary[1];
   byte rary[1];
   wary[0] = wdata;
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Enhanced_Volatile_Configuration_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Enhanced_Volatile_Configuration_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata);
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x61, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_WR, "WRITE ENHANCED VOLATILE CONFIGURATION REGISTER");
   return;
 }
@@ -1496,11 +1928,11 @@ void fw_Enhanced_Volatile_Configuration_Register(u32 devsel, byte wdata)
 byte fr_Extended_Address_Register(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  wary[0] = 0x00;    
-  if (check_TRC_FLASH_CMD()) printf("fr_Extended_Address_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  wary[0] = 0x00;
+  if (check_TRC_FLASH_CMD()) printf("fr_Extended_Address_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0xC8, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_RD, "READ EXTENDED ADDRESS REGISTER");
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Extended_Address_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Extended_Address_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]);
   return rary[0];
 }
 // --------------------------------------------------------------------------------------------------------
@@ -1508,8 +1940,8 @@ void fw_Extended_Address_Register(u32 devsel, byte wdata)
 { byte wary[1];
   byte rary[1];
   wary[0] = wdata;
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Extended_Address_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Extended_Address_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata);
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0xC5, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_WR, "WRITE EXTENDED ADDRESS REGISTER");
   return;
 }
@@ -1520,11 +1952,11 @@ void fw_Extended_Address_Register(u32 devsel, byte wdata)
 byte fr_Status_Register(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  wary[0] = 0x00;    
-  if (check_TRC_FLASH_CMD()) printf("fr_Status_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  wary[0] = 0x00;
+  if (check_TRC_FLASH_CMD()) printf("fr_Status_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x05, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_RD, "READ STATUS REGISTER");
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Status_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Status_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]);
   return rary[0];
 }
 // --------------------------------------------------------------------------------------------------------
@@ -1532,8 +1964,8 @@ void fw_Status_Register(u32 devsel, byte wdata)
 { byte wary[1];
   byte rary[1];
   wary[0] = wdata;
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Status_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Status_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata);
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x01, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_WR, "WRITE STATUS REGISTER");
   return;
 }
@@ -1544,19 +1976,19 @@ void fw_Status_Register(u32 devsel, byte wdata)
 byte fr_Flag_Status_Register(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  wary[0] = 0x00;    
-  if (check_TRC_FLASH_CMD()) printf("fr_Flag_Status_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  wary[0] = 0x00;
+  if (check_TRC_FLASH_CMD()) printf("fr_Flag_Status_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x70, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_RD, "READ FLAG STATUS REGISTER");
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Flag_Status_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Flag_Status_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]);
   return rary[0];
 }
 // --------------------------------------------------------------------------------------------------------
 void fw_Clear_Flag_Status_Register(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Clear_Flag_Status_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Clear_Flag_Status_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x50, 0x00000000, 0       , 0        , 0        , wary   , rary   , FO_DIR_WR, "CLEAR FLAG STATUS REGISTER");
   return;
 }
@@ -1568,12 +2000,12 @@ u32 fr_Nonvolatile_Configuration_Register(u32 devsel)
 { byte wary[2];
   byte rary[2];
   u32  retval;
-  wary[0] = 0x00; 
-  wary[1] = 0x00;   
-  if (check_TRC_FLASH_CMD()) printf("fr_Nonvolatile_Configuration_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  wary[0] = 0x00;
+  wary[1] = 0x00;
+  if (check_TRC_FLASH_CMD()) printf("fr_Nonvolatile_Configuration_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0xB5, 0x00000000, 0       , 0        , 2        , wary   , rary   , FO_DIR_RD, "READ NONVOLATILE CONFIGURATION REGISTER");
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Nonvolatile_Configuration_Register: (done) devsel %s, rdata %2.2X %2.2X\n", flash_devsel_as_str(devsel), rary[0], rary[1]); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Nonvolatile_Configuration_Register: (done) devsel %s, rdata %2.2X %2.2X\n", flash_devsel_as_str(devsel), rary[0], rary[1]);
   retval = 0x00000000 | (rary[0] << 8) | rary[1] ;
   return retval;
 }
@@ -1583,8 +2015,8 @@ void fw_Nonvolatile_Configuration_Register(u32 devsel, u32 wdata)
   byte rary[2];
   wary[0] = u32tobyte( ((wdata & 0x0000FF00) >> 8) );
   wary[1] = u32tobyte( ((wdata & 0x000000FF)     ) );
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Nonvolatile_Configuration_Register: devsel %s, wdata %2.2X %2.2X\n", flash_devsel_as_str(devsel), wary[0], wary[1]); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Nonvolatile_Configuration_Register: devsel %s, wdata %2.2X %2.2X\n", flash_devsel_as_str(devsel), wary[0], wary[1]);
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0xB1, 0x00000000, 0       , 0        , 2        , wary   , rary   , FO_DIR_WR, "WRITE NONVOLATILE CONFIGURATION REGISTER");
   return;
 }
@@ -1595,11 +2027,11 @@ void fw_Nonvolatile_Configuration_Register(u32 devsel, u32 wdata)
 byte fr_Volatile_Configuration_Register(u32 devsel)
 { byte wary[1];
   byte rary[1];
-  wary[0] = 0x00;    
-  if (check_TRC_FLASH_CMD()) printf("fr_Volatile_Configuration_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  wary[0] = 0x00;
+  if (check_TRC_FLASH_CMD()) printf("fr_Volatile_Configuration_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x85, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_RD, "READ VOLATILE CONFIGURATION REGISTER");
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Volatile_Configuration_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Volatile_Configuration_Register: (done) devsel %s, rdata %2.2X\n", flash_devsel_as_str(devsel), rary[0]);
   return rary[0];
 }
 // --------------------------------------------------------------------------------------------------------
@@ -1607,8 +2039,8 @@ void fw_Volatile_Configuration_Register(u32 devsel, byte wdata)
 { byte wary[1];
   byte rary[1];
   wary[0] = wdata;
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Volatile_Configuration_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_Volatile_Configuration_Register: devsel %s, wdata %2X\n", flash_devsel_as_str(devsel), wdata);
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x81, 0x00000000, 0       , 0        , 1        , wary   , rary   , FO_DIR_WR, "WRITE VOLATILE CONFIGURATION REGISTER");
   return;
 }
@@ -1622,10 +2054,10 @@ void fr_Device_ID_Register(u32 devsel, byte *rdata)    // 20 bytes of read data 
   int i;
 
   for (i=0; i < 20; i++) {
-    wary[i] = 0x00; 
+    wary[i] = 0x00;
   }
-  if (check_TRC_FLASH_CMD()) printf("fr_Device_ID_Register: devsel %s\n", flash_devsel_as_str(devsel)); 
-  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir, 
+  if (check_TRC_FLASH_CMD()) printf("fr_Device_ID_Register: devsel %s\n", flash_devsel_as_str(devsel));
+  //       devsel  cmd   addr        num_addr, num_dummy, num_bytes, wdata[], rdata[], dir,
   flash_op(devsel, 0x9E, 0x00000000, 0       , 0        , 20       , wary   , rary   , FO_DIR_RD, "READ DEVICE ID REGISTER");
   for (i=0; i < 20; i++) {
     *(rdata + i) = rary[i];
@@ -1642,7 +2074,7 @@ void fw_4KB_Subsector_Erase(u32 devsel, u32 addr)   // 3 byte address
   byte rary[1];
   wary[0] = 0x00;
 
-  if (TRC_FLASH_CMD == TRC_ON) printf("fw_4KB_Subsector_Erase: devsel %s, addr %4X\n", flash_devsel_as_str(devsel), addr); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fw_4KB_Subsector_Erase: devsel %s, addr %4X\n", flash_devsel_as_str(devsel), addr);
   //       devsel  cmd   addr  num_addr   num_dummy, num_bytes  , wdata[], rdata[], dir      , comment
 #ifdef USE_SIM_TO_TEST
   printf("fw_4KB_Subsector_Erase: Skip ERASE cmd when running sim, put back in when running on real hardware (takes too long to run in sim).\n");
@@ -1665,10 +2097,10 @@ void fw_64KB_Sector_Erase(u32 devsel, u32 addr)   // 3 byte address
   //       devsel  cmd   addr  num_addr   num_dummy, num_bytes  , wdata[], rdata[], dir      , comment
 #ifdef USE_SIM_TO_TEST
   printf("fw_64KB_Sector_Erase: Skip ERASE cmd when running sim, put back in when running on real hardware (takes too long to run in sim).\n");
-   // However from comments from the FLASH model, it looks like the FLASH recognizes and begins to execute the ERASE command properly.             
+   // However from comments from the FLASH model, it looks like the FLASH recognizes and begins to execute the ERASE command properly.
 
 #else
-  flash_op(devsel, 0xD8, addr, 4        , 0        , 0          , wary   , rary   , FO_DIR_WR, "4KB SUBSECTOR ERASE"); 
+  flash_op(devsel, 0xD8, addr, 4        , 0        , 0          , wary   , rary   , FO_DIR_WR, "4KB SUBSECTOR ERASE");
 #endif
 
   return;
@@ -1687,13 +2119,13 @@ void fr_Read(u32 devsel, u32 addr, int num_bytes, byte *rary)   // 3 byte addres
   }
   for (i=0; i < num_bytes; i++) { wary[i] = 0x00; }  // Clear write data
 
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Read: devsel %s, addr %4X, num_bytes %d\n", flash_devsel_as_str(devsel), addr, num_bytes); 
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Read: devsel %s, addr %4X, num_bytes %d\n", flash_devsel_as_str(devsel), addr, num_bytes);
   //       devsel  cmd   addr  num_addr , num_dummy, num_bytes, wdata[], rdata[], dir      , comment
   flash_op(devsel, 0x03, addr, 4        , 0        , num_bytes, wary   , rary   , FO_DIR_RD, "READ");
 
   // Free malloc'd memory
   free(wary);
-   
+
   return;
 }
 
@@ -1701,10 +2133,11 @@ void fr_Read(u32 devsel, u32 addr, int num_bytes, byte *rary)   // 3 byte addres
 
 // --------------------------------------------------------------------------------------------------------
 void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary)   // 3 byte address
-{ 
+{
+
   //printf("Entered Page Program Function\n");
   byte *rary;
-
+  //printf("Declared rary\n");
   rary = (byte *) malloc(num_bytes * sizeof(byte));  // Just allocate, no need to initialize as it will overwritten by flash_op
   if (rary == NULL) {
     ERRORS_DETECTED++;
@@ -1712,13 +2145,18 @@ void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary)   // 3 byt
     return;
   }
 
-  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Page_Program: devsel %s, addr %4X, num_bytes %d\n", flash_devsel_as_str(devsel), addr, num_bytes); 
+  //printf("Array alloced\n");
+  if (TRC_FLASH_CMD == TRC_ON) printf("fr_Page_Program: devsel %s, addr %4X, num_bytes %d\n", flash_devsel_as_str(devsel), addr, num_bytes);
   //       devsel  cmd   addr  num_addr, num_dummy, num_bytes, wdata[], rdata[], dir      , comment
   flash_op(devsel, 0x02, addr, 4       , 0        , num_bytes, wary   , rary   , FO_DIR_WR, "PAGE PROGRAM");
+
+  //printf("Flash Op page program complete\n");
 
   //printf("Deallocating array\n");
   // Free malloc'd memory
   free(rary);
+
+  //printf("Free array complete\n");
   //printf("Finished deallocating array\n");
 
   return;
@@ -1733,7 +2171,7 @@ void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary)   // 3 byt
 // --------------------------------------------------------------------------------------------------------
 // End of test check
 void Check_Accumulated_Errors(void)  // Check Global error flag to determine if test passed or failed
-{ if (ERRORS_DETECTED == 0) 
+{ if (ERRORS_DETECTED == 0)
   {  printf("\n\nCheck_Accumulated_Errors: PASS (no errors detected)\n\n");
      return;
   } else
