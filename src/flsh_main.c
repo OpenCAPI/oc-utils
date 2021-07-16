@@ -614,7 +614,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
    if (i > 1){
      percentage = (int)(i*100/num_256B_pages);
      if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
-       printf("Writing image code : %d %% of %d pages      \r", percentage , num_256B_pages);}
+       printf("Writing image code : %d %% of %d pages                        \r", percentage , num_256B_pages);}
      prev_percentage = percentage;
    } else {
      printf("Waiting for card acknowledgement (can take up to a minute!) \r");
