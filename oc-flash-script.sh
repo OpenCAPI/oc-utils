@@ -38,10 +38,6 @@ printf "===============================\n"
 echo oc-flash_script version is $tool_version
 printf "Tool compiled on: "
 ls -l $package_root/oc-flash|cut -d ' ' -f '6-8'
-printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"
-printf ">>>>>>>>>>>>>>>>>>>>>>>>  PARTIAL RECONFIG VERSION <<<<<<<<<<<<<<<<<<<\n"
-printf ">>>>>>>>>>>>>> YOU ARE ON PARTIAL_RECONFIG BRANCH (NOT MASTER) <<<<<<<\n"
-printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"
 
 force=0
 program=`basename "$0"`
