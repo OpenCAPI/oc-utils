@@ -480,7 +480,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  for(i=0;i<num_256B_pages;i++) {
    percentage = (int)(i*100/num_256B_pages);
    if( ((percentage %5) == 0) && (prev_percentage != percentage))
-       printf("Writing image code : %d %% of %d pages      \r", percentage, num_256B_pages);
+       printf("Writing image code : %d %% of %d pages                        \r", percentage, num_256B_pages);
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
      //edat = 0xFFFFFFFF;
