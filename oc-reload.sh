@@ -146,7 +146,7 @@ subsys=$(cat /sys/bus/pci/devices/${card}/subsystem_device)
 # adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
 
 #if [ $subsys == "0x066a" ]; then
-if [[ $subsys = @("066a"|"060d") ]]; then 
+if [[ $subsys = @("0x066a"|"0x060d") ]]; then 
   printf "Warning - known issue on 250SOC reload - you may need to reboot the server\n"
   reload_card $card factory "Image Reloading for OpenCAPI Adapter $card (250SOC)"
 
