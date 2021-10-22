@@ -395,20 +395,22 @@ if (($force != 1)); then
     fi
 
     if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
-      printf "\n>>>===================================================================================================<<<\n"
-      printf ">>> WARNING: It sounds as if you have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!! <<<\n"
-      printf ">>> You may crash and lose your card if you force the programming. You can continue at your own risk! <<<\n" 
-      printf ">>>===================================================================================================<<<\n"
-    #else
+      printf "\n>>>========================================================================================================<<<\n"
+      printf ">>> WARNING: It sounds as if you have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!!\n"
+      printf ">>> You may crash and lose your card if you force the programming. Use '-f' option if you want to force it.\n" 
+      printf ">>>========================================================================================================<<<\n"
+      exit
+    else
       #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
+      break
     fi
 
-    read -p "Do you want to continue? [y/n] " yn
-    case $yn in
-      [Yy]* ) break;;
-      [Nn]* ) exit;;
-      * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-    esac
+    #read -p "Do you want to continue? [y/n] " yn
+    #case $yn in
+    #  [Yy]* ) break;;
+    #  [Nn]* ) exit;;
+    #  * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+    #esac
   done
 else
   printf "Continue to flash ${bold}$1${normal} ";
@@ -441,11 +443,12 @@ if [ $PR_mode == 1 ]; then
       ask_if_like_risk=1
     else
        if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
-         printf ">>>============================================================================================<<<\n"
+         printf ">>>=====================================================================================================<<<\n"
          printf ">>> WARNING : Static code ${PRC_static} (flash log file) doesn't match with dynamic code ${PRC_dynamic} (your filename)!\n"
-         printf "You may crash and lose your card if you force the programming. You can continue at your own risk !\n" 
-         printf ">>>============================================================================================<<<\n"
+         printf "You may crash and lose your card if you force the programming.  Use '-f' option if you want to force it.\n" 
+         printf ">>>=====================================================================================================<<<\n"
          ask_if_like_risk=1
+	 exit
        else
          printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
          ask_if_like_risk=0
