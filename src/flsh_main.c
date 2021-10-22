@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
 
 //===============================================
 //===== PARTIAL RECONFIGURATION PROGRAMMING =====
-//=====   SUPPORTED CARDS :  AD9V3 - AD9H3 ======
+//=====   SUPPORTED CARDS :  AD9H3 - AD9H7 ======
 //===============================================
 
   } else { // if(subsys != 0x066A)
@@ -281,10 +281,9 @@ int main(int argc, char *argv[])
 
   for(i=0;i<num_burst;i++) {
     percentage = (int)(i*100/num_burst);
-    // No idea wht the following condition doesn't work !!
-    //if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
-    if((percentage %5) == 0) {
+    if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
        printf("Writing partial image code : %d %% of %d pages                        \r", percentage, num_burst);
+       fflush(stdout);
     }
     for (j=0;j<icap_burst_size;j++) {
       dif = read(BIN,&wdatatmp,4);
