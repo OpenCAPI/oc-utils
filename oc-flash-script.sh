@@ -400,17 +400,16 @@ if (($force != 1)); then
       printf ">>> You may crash and lose your card if you force the programming. Use '-f' option if you want to force it.\n" 
       printf ">>>========================================================================================================<<<\n"
       exit
-    else
+    #else
       #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
-      break
     fi
 
-    #read -p "Do you want to continue? [y/n] " yn
-    #case $yn in
-    #  [Yy]* ) break;;
-    #  [Nn]* ) exit;;
-    #  * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-    #esac
+    read -p "Do you want to continue? [y/n] " yn
+    case $yn in
+      [Yy]* ) break;;
+      [Nn]* ) exit;;
+      * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+    esac
   done
 else
   printf "Continue to flash ${bold}$1${normal} ";
