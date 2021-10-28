@@ -21,6 +21,7 @@ package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
 
 program=`basename "$0"`
+mylock=0  # var used to remove lock dir only if we created it
 
 # Print usage message helper function
 function usage() {
@@ -122,7 +123,8 @@ shift $((OPTIND-1))
 
 ulimit -c unlimited
 
-# check if CAPI boards exists
+# check if OPENCAPI boards exists
+# we get number of cards in system
 ocapi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $ocapi_check -eq 0 ]; then
   printf "${bold}ERROR:${normal} No OpenCAPI devices found\n"
@@ -136,7 +138,27 @@ if [ -n "$card" ]; then
         fi
 else
         select_cards
-        # Convert the slot number into a 000x:00:00.0 slot number
+
+	echo "card selected is : $c"
+        echo "Checking if card is locked"
+        LockDir="$LockDirPrefix$c"
+        # make LockDir if not presen
+        # mutual exclusion
+        if mkdir $LockDir 2>/dev/null; then
+               echo "$LockDir created"
+               mylock=1
+        else
+		echo
+		printf "${bold}ERROR:${normal} $LockDir is already existing\n"
+		printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
+ 		exit 1
+	fi
+
+trap 'if [ $mylock ]; then rm -rf "$LockDir" ;echo "$LockDir removed";fi' EXIT
+
+
+
+	# Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
 reset_card $card factory "Resetting OpenCAPI Adapter $card"

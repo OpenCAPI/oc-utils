@@ -13,8 +13,11 @@
 # limitations under the License.
 #
 
-version=1.0
+version=1.1
+# revision 1.1 adds a check for lock file per card to avoid resetting a card under programmation
+
 log_file=/var/log/capi-utils.log
+LockDirPrefix=/var/ocxl/locked_card
 
 # Reset a card
 function reset_card() {
