@@ -18,6 +18,7 @@
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
 package_root=$(dirname $package_root)
+# echo "DEBUG : Package_root is : $package_root"
 source $package_root/oc-utils-common.sh
 
 program=`basename "$0"`
@@ -139,27 +140,33 @@ if [ -n "$card" ]; then
 else
         select_cards
 
-	echo "card selected is : $c"
-        echo "Checking if card is locked"
-        LockDir="$LockDirPrefix$c"
-        # make LockDir if not presen
-        # mutual exclusion
-        if mkdir $LockDir 2>/dev/null; then
-               echo "$LockDir created"
-               mylock=1
-        else
-		echo
-		printf "${bold}ERROR:${normal} $LockDir is already existing\n"
-		printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
- 		exit 1
-	fi
-
-trap 'if [ $mylock ]; then rm -rf "$LockDir" ;echo "$LockDir removed";fi' EXIT
-
-
 
 	# Convert the slot number into a 000x:00:00.0 slot number
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
+
+
+
+	echo "card selected is : $card"
+        echo "Checking if card is locked"
+#	echo "DEBUG : LockDirPrefix is $LockDirPrefix"
+        LockDir="$LockDirPrefix$card"
+#	echo "DEBUG : LockDir is $LockDir"
+        # make LockDir if not present
+        # mutual exclusion
+        if mkdir $LockDir 2>/dev/null; then
+               echo "$LockDir created"
+		trap 'rm -rf "$LockDir"' EXIT # This prepares a cleaning of the newly created dir
+					      # when script will output
+       else
+		echo
+		printf "${bold}ERROR:${normal} $LockDir is already existing\n"
+		printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
+ 		exit 10
+	fi
+
+
+
+
 reset_card $card factory "Resetting OpenCAPI Adapter $card"
 
