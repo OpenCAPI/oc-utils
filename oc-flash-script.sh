@@ -139,42 +139,6 @@ if [ $capi_check -eq 0 ]; then
   exit 1
 fi
 
-LockDir=/var/ocxl/oc-flash-script.lock
-
-# make cxl dir if not present
-mkdir -p `dirname $LockDir`
-
-# mutual exclusion
-if ! mkdir $LockDir 2>/dev/null; then
-  echo
-  printf "${bold}ERROR:${normal} Existing LOCK => Another instance of this script is maybe running\n"
-
-  DateLastBoot=`who -b | awk '{print $3 " " $4}'`
-  EpochLastBoot=`date -d "$DateLastBoot" +%s`
-
-  EpochLockDir=`stat --format=%Y $LockDir`
-  DateLockDir=`date --date @$EpochLockDir`
-
-  echo
-  echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
-  echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
-
-  echo;echo "======================================================="
-  if [ $EpochLockDir -lt $EpochLastBoot ]; then
-     echo "$LockDir modified BEFORE last boot"
-     echo "LOCK is not supposed to still be here"
-     echo "  ==> Deleting and recreating $LockDir"
-     rmdir $LockDir
-     mkdir $LockDir
-  else
-     echo "$LockDir modified AFTER last boot"
-     printf "${bold}ERROR:${normal} Another instance of this script is running\n"
-     echo "Exiting..."
-     exit 1
-  fi
-
-fi
-trap 'rm -rf "$LockDir"' EXIT
 
 printf "\n"
 # get number of cards in system
@@ -486,14 +450,61 @@ fi
 trap 'kill -TERM $PID; perst_factory $c' TERM INT
 # flash card with corresponding binary
 bdf=`echo ${allcards_array[$c]}`
-#echo $bdf
+echo "Entering card locking mechanism ..."
+
+
+#LockDir=/var/ocxl/oc-flash-script.lock
+LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
+
+# make cxl dir if not present
+# mkdir -p `dirname $LockDir`
+
+# mutual exclusion
+if mkdir $LockDir 2>/dev/null; then
+	echo "$LockDir created"
+	trap 'rm -rf "$LockDir"' EXIT # This prepares a cleaning of the newly created dir
+	                                                # when script will output
+					      
+else
+	printf "${bold}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance of this script or oc-reset maybe running\n"
+
+  DateLastBoot=`who -b | awk '{print $3 " " $4}'`
+  EpochLastBoot=`date -d "$DateLastBoot" +%s`
+
+  EpochLockDir=`stat --format=%Y $LockDir`
+  DateLockDir=`date --date @$EpochLockDir`
+
+  echo
+  echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+  echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+
+  echo;echo "======================================================="
+  if [ $EpochLockDir -lt $EpochLastBoot ]; then
+     echo "$LockDir modified BEFORE last boot"
+     echo "LOCK is not supposed to still be here"
+     echo "  ==> Deleting and recreating $LockDir"
+     rmdir $LockDir
+     mkdir $LockDir
+  else
+     echo "$LockDir modified AFTER last boot"
+     printf "${bold}ERROR:${normal} Another instance of this script or oc-reset is running\n"
+     echo "Exiting..."
+     exit 10
+  fi
+
+fi
+
+
+
 if [ $flash_type == "SPIx8" ]; then
 	# SPIx8 needs two file inputs (primary/secondary)
 	#  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
 	# until multiboot is enabled, force writing to 0x0
 	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
+	sleep 2
 else
 	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
+	sleep 2
 fi
 
 PID=$!
@@ -504,6 +515,7 @@ RC=$?
 if [ $RC -eq 0 ]; then
 	if [ $PR_mode == 0 ]; then
 		#  reload code from Flash (oc-reload calls a oc_reset)
+		#  As we call routines, not shells, we keep the current card LockDir
       		printf "Auto reload the image from flash:\n"
       		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
 	else
