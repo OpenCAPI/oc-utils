@@ -501,10 +501,8 @@ if [ $flash_type == "SPIx8" ]; then
 	#  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
 	# until multiboot is enabled, force writing to 0x0
 	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
-	sleep 2
 else
 	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
-	sleep 2
 fi
 
 PID=$!

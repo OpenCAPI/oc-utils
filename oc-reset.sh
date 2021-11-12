@@ -155,8 +155,8 @@ fi
         # make LockDir if not present
         # mutual exclusion
         if mkdir $LockDir 2>/dev/null; then
-               echo "$LockDir created"
-		trap 'rm -rf "$LockDir"' EXIT # This prepares a cleaning of the newly created dir
+		echo "$LockDir created during oc-reset"
+		trap 'rm -rf "$LockDir";echo "$LockDir removed"' EXIT # This prepares a cleaning of the newly created dir
 					      # when script will output
        else
 		echo
