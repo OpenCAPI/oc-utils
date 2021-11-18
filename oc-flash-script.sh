@@ -462,8 +462,8 @@ LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
 # mutual exclusion
 if mkdir $LockDir 2>/dev/null; then
 	echo "$LockDir created"
-	trap 'rm -rf "$LockDir"' EXIT # This prepares a cleaning of the newly created dir
-	                                                # when script will output
+	trap 'rm -rf "$LockDir";echo "$LockDir removed at the end of oc-flash-script"' EXIT # This prepares a cleaning of the newly created dir
+					      # when script will output						
 					      
 else
 	printf "${bold}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance of this script or oc-reset maybe running\n"
