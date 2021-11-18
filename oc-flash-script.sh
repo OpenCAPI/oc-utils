@@ -16,7 +16,7 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=4.00
+tool_version=4.1
 # Changes History
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
@@ -25,6 +25,7 @@ tool_version=4.00
 # V2.31 repaired the 4 bytes mode for 9H3
 # V3.00 reordering the slot numbering
 # V4.00 integrating the Partial reconfiguration
+# V4.1  introducing a per card lock mechanism
 
 # get capi-utils root
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
