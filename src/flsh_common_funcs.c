@@ -2172,10 +2172,10 @@ void fw_Page_Program(u32 devsel, u32 addr, int num_bytes, byte *wary)   // 3 byt
 // End of test check
 void Check_Accumulated_Errors(void)  // Check Global error flag to determine if test passed or failed
 { if (ERRORS_DETECTED == 0)
-  {  printf("\n\nCheck_Accumulated_Errors: PASS (no errors detected)\n\n");
+  {  printf(" No error detected.\n");
      return;
   } else
-  {  printf("\n\nCheck_Accumulated_Errors: #### FAIL #### (%d errors detected)\n\n", ERRORS_DETECTED);
+  {  printf("Check_Accumulated_Errors: #### FAIL #### (%d errors detected)\n", ERRORS_DETECTED);
      return;   // main() only allows value of 0 or 1 as return values
   }
 }

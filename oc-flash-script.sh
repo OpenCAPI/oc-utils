@@ -32,13 +32,28 @@ tool_version=4.1
 package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
 
+bold=$(tput bold)
+blue=$(tput setaf 4)
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+normal=$(tput sgr0)
+
 printf "\n"
-printf "===============================\n"
-printf "== OpenCAPI programming tool ==\n"
-printf "===============================\n"
-echo oc-flash_script version is $tool_version
+printf "oc-flash_script version is $tool_version\t - "
 printf "Tool compiled on: "
 ls -l $package_root/oc-flash|cut -d ' ' -f '6-8'
+echo "_____________________________________________________________________${bold} ${green}"
+echo "            ____                   _________    ____  ____           "
+echo "           / __ \____  ___  ____  / ____/   |  / __ \/  _/           "
+echo "          / / / / __ \/ _ \/ __ \/ /   / /| | / /_/ // /             "
+echo "         / /_/ / /_/ /  __/ / / / /___/ ___ |/ ____// /              "
+echo "         \____/ .___/\___/_/ /_/\____/_/  |_/_/   /___/              ${blue}"
+echo "   ___       /_/                       _             __            __"
+echo "  / _ \_______  ___ ____ ___ _  __ _  (_)__  ___ _  / /____  ___  / /"
+echo " / ___/ __/ _ \/ _ '/ _ '/  ' \/  ' \/ / _ \/ _ '/ / __/ _ \/ _ \/ / "
+echo "/_/  /_/  \___/\_, /\_,_/_/_/_/_/_/_/_/_//_/\_, /  \__/\___/\___/_/  "
+echo "              /___/                        /___/                     ${normal}"
+echo "_____________________________________________________________________"
 
 force=0
 program=`basename "$0"`
@@ -104,11 +119,11 @@ while getopts ":C:fVhr" opt; do
       exit 0
       ;;
       \?)
-      printf "${bold}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
+      printf "${bold}${red}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
       exit 1
       ;;
       :)
-      printf "${bold}ERROR:${normal} Option -$OPTARG requires an argument.\n" >&2
+      printf "${bold}${red}ERROR:${normal} Option -$OPTARG requires an argument.\n" >&2
       exit 1
       ;;
   esac
@@ -121,14 +136,14 @@ ulimit -c unlimited
 
 # make sure an input argument is provided
 if [ $# -eq 0 ]; then
-  printf "${bold}ERROR:${normal} Input argument missing\n"
+  printf "${bold}${red}ERROR:${normal} Input argument missing\n"
   usage
   exit 1
 fi
 
 # make sure the input file exists
 if [[ ! -e $1 ]]; then
-  printf "${bold}ERROR:${normal} $1 not found\n"
+  printf "${bold}${red}ERROR:${normal} $1 not found\n"
   usage
   exit 1
 fi
@@ -136,7 +151,7 @@ fi
 # check if OpenCAPI boards exists
 capi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $capi_check -eq 0 ]; then
-  printf "${bold}ERROR:${normal} No OpenCAPI devices found\n"
+  printf "${bold}${red}ERROR:${normal} No OpenCAPI devices found\n"
   exit 1
 fi
 
@@ -144,7 +159,7 @@ fi
 printf "\n"
 # get number of cards in system
 n=`ls /dev/ocxl 2>/dev/null | wc -l`
-printf "In this server: $n OpenCAPI card(s) found."
+printf " In this server:  ${bold}$n${normal} OpenCAPI card(s) found."
 # touch history files if not present
 for i in `seq 0 $(($n - 1))`; do
   f="/var/ocxl/card$i"
@@ -154,11 +169,11 @@ for i in `seq 0 $(($n - 1))`; do
 done
 
 # print current date on server for comparison
-printf "\n${bold}Current date is ${normal}$(date)\n\n"
+printf "\n${bold} Current date is ${normal}$(date)\n\n"
 
 # print table header
-printf "Following logs show last programming files (except if hardware or capi version has changed):\n"
-printf "${bold}%-7s %-35s %-29s %-20s %s${normal}\n" "#" "Card slot and name" "Flashed" "by"
+printf " Following logs show last programming files (except if hardware or capi version has changed):\n"
+printf "${bold}%-7s %-35s %-29s %-20s %s${normal}\n" " #" "Card slot and name" "Flashed" "by"
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
 if [ -z "$allcards" ]; then
@@ -200,9 +215,13 @@ while read d ; do
 		  	component_list=(${line:6:23})
 		  	bin_list=(${f:51})
                         #display Card number : slot - Card name - date -name of last programming registered in file
-		  	printf "%-8s %-22s %-29s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+		  	printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
                         #display the 2 names of bin files
-		  	printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
+			if [ ! -z ${bin_list[1]} ]; then
+		  	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
+			else
+		  	  printf "\t%s \n" "${bin_list[0]}"
+			fi
 		  	echo ""
 	    	fi
       	done < "$package_root/oc-devices"
@@ -236,13 +255,13 @@ if [ ! -z $paramcard ]; then
 else
 # prompt card to flash to
 #  while true; do
-#    read -p "Which card do you want to flash? [0-$(($n - 1))] " c
+#    read -p "  Which card do you want to flash? [0-$(($n - 1))] " c
 #    if ! [[ $c =~ ^[0-9]+$ ]]; then
-#      printf "${bold}ERROR:${normal} Invalid input\n"
+#      printf "${bold}${red}ERROR:${normal} Invalid input\n"
 #    else
 #      c=$((10#$c))
 #      if (( "$c" >= "$n" )); then
-#        printf "${bold}ERROR:${normal} Wrong card number\n"
+#        printf "${bold}${red}ERROR:${normal} Wrong card number\n"
 #        exit 1
 #      else
 #        break
@@ -253,13 +272,13 @@ else
     # prompt card until input is in list of available slots
     while ! [[ "$c" =~ ^($slot_enum)$ ]]
     do
-        echo -e "Which card number do you want to flash? [$slot_enum]: \c" | sed 's/|/-/g'
+        echo -e "  ${green}Which card number do you want to flash? [${bold}$slot_enum${normal}]: \c" | sed 's/|/-/g'
         read -r c
      done
     printf "\n"
 
     card4=$(printf '%04x' "0x${c}")
-    echo "Slot is: $card4"
+    #echo "Slot is: $card4"
     # search for card4 occurence and get line number in list of slots
     ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
     c=$(($ln - 1))
@@ -273,16 +292,16 @@ PR_mode=0
 FILE_EXT=${1##*.}
 if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   if [[ $FILE_EXT != "rbf" ]]; then
-    printf "${bold}ERROR: ${normal}Wrong file extension: .rbf must be used for boards with Altera FPGA\n"
+    printf "${bold}${red}ERROR: ${normal}Wrong file extension: .rbf must be used for boards with Altera FPGA\n"
     exit 0
   fi
 elif [[ ${fpga_manuf[$c]} == "Xilinx" ]]; then
   if [[ $FILE_EXT != "bin" ]]; then
-    printf "${bold}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
+    printf "${bold}${red}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
     exit 0
   fi
 else
-  printf "${bold}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
+  printf "${bold}${red}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
   exit 0
 fi
 
@@ -291,7 +310,7 @@ if [ -z "$flash_address" ]; then
   flash_address=${flash_partition[$c]}
   if [[ $1 =~ "_partial" ]]
   then
-     printf "Partial Reconfiguration mode detected.\n"
+     #printf "Partial Reconfiguration image has been detected.\n"
      PR_mode=1
   fi
   else if [[ $1 =~ "fw_" ]]
@@ -319,22 +338,23 @@ fi
 # Deal with the second argument
 if [ $flash_type == "SPIx8" ]; then
     if [ $# -eq 1 ]; then
-      printf "${bold}ERROR:${normal} Input argument missing. The selected device is SPIx8 and needs both primary and secondary bin files\n"
+      printf "${bold}${red}ERROR:${normal} Input argument missing for SPIx8 card (or bad card selected)\n"
+      printf "       The device you have selected requires both primary and secondary bin files\n"
       bdf=`echo ${allcards_array[$c]}`
-      echo $bdf
+      #echo $bdf
       usage
       exit 1
     fi
     #Check the second file
     if [[ ! -e $2 ]]; then
-      printf "${bold}ERROR:${normal} $2 not found\n"
+      printf "${bold}${red}ERROR:${normal} $2 not found\n"
       usage
       exit 1
     fi
     #Assign secondary address
     flash_address2=${flash_secondary[$c]}
     if [ -z "$flash_address2" ]; then
-        printf "${bold}ERROR:${normal} The second address must be assigned in file oc-device\n"
+        printf "${bold}${red}ERROR:${normal} The second address must be assigned in file oc-device\n"
         exit 1
     fi
 fi
@@ -344,7 +364,8 @@ fi
 if (($force != 1)); then
   # prompt to confirm
   while true; do
-    printf "\n>>> REMINDER: It is MANDATORY to CLOSE all JTAG tools (SDK, hardware_manager) before starting programming.\n\n" 
+    printf " ${bold}INFO:${normal} It is ${bold}highly recommended ${normal}to CLOSE all JTAG tools (SDK, hardware_manager) before programming\n";
+    printf "      This could create a conflict, lose access to the card and force you to reboot the server!\n\n";
 
     #extract the card name of the input argument
     #file_to_program=`echo $1 |awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
@@ -352,24 +373,29 @@ if (($force != 1)); then
     #printf "The binary file you want to use is build for ${file_to_program}\n" 
     #extract the name of the slot 
     card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
-    #printf "You have chosen to reprogram ${card_to_program}\n"
+    #printf " You have chosen to reprogram ${card_to_program}\n"
 
-    printf "You will flash the ${bold} ${card_to_program} board in slot $card4${normal} with:\n     ${bold}$1${normal}\n" 
+    if [ $PR_mode == 1 ]; then
+        printf " You have asked to ${bold}dynamically${normal} program the ${bold}${card_to_program}${normal} board in slot ${bold}$card4${normal} with :\n     ${bold}$1${normal}\n" 
+    else
+        printf " You have asked to ${bold}flash${normal} the ${bold}${card_to_program}${normal} board in slot ${bold}$card4${normal} with:\n     ${bold}$1${normal}\n" 
+    fi
     if [ $flash_type == "SPIx8" ]; then
         printf " and ${bold}$2${normal}\n" 
     fi
 
     if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
-      printf "\n>>>========================================================================================================<<<\n"
-      printf ">>> WARNING: It sounds as if you have chosen to program a file built for a ${file_to_program} in the ${card_to_program} board!!\n"
-      printf ">>> You may crash and lose your card if you force the programming. Use '-f' option if you want to force it.\n" 
-      printf ">>>========================================================================================================<<<\n"
+      printf "\n>>>=================================================================================<<<\n"
+      printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
+      printf ">>> You may crash and lose your card if you force the programming.\n" 
+      printf ">>> You can force at your own risks using the '-f' option.\n" 
+      printf ">>>=================================================================================<<<\n"
       exit
     #else
       #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
     fi
 
-    read -p "Do you want to continue? [y/n] " yn
+    read -p "  ${green}Do you confirm? [${bold}y/n${normal}] " yn
     case $yn in
       [Yy]* ) break;;
       [Nn]* ) exit;;
@@ -393,7 +419,7 @@ if [ $PR_mode == 1 ]; then
     #extract the card name of the input argument
     PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
     if [ -z "$PRC_dynamic" ]; then
-      printf ">>> WARNING : NO dynamic PR Code in filename! <<<\n" 
+      printf ">>> ${bold}WARNING :${normal} NO dynamic PR Code in filename! <<<\n" 
       printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
       ask_if_like_risk=1
     fi
@@ -402,15 +428,16 @@ if [ $PR_mode == 1 ]; then
     PRC_static=`cat /var/ocxl/card$c | awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
     #printf "From log flash file : $c ${p[$c]:0:6} $PRC_static\n"
     if [ -z "$PRC_static" ]; then
-      printf ">>> WARNING : NO static PR Code found in filename logged in Flash log files! <<<\n" 
+      printf ">>> ${bold}WARNING :${normal} NO static PR Code found in filename logged in Flash log files! <<<\n" 
       printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
       ask_if_like_risk=1
     else
        if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
-         printf ">>>=====================================================================================================<<<\n"
-         printf ">>> WARNING : Static code ${PRC_static} (flash log file) doesn't match with dynamic code ${PRC_dynamic} (your filename)!\n"
-         printf "You may crash and lose your card if you force the programming.  Use '-f' option if you want to force it.\n" 
-         printf ">>>=====================================================================================================<<<\n"
+         printf "\n>>>===================================================================================<<<\n"
+         printf ">>> ${bold}${red}ERROR :${normal} Static code ${bold}${PRC_static}${normal} (flash log file) doesn't match with dynamic code ${bold}${PRC_dynamic}${normal} (your filename)!\n"
+         printf ">>> You may crash and lose your card if you force the programming.\n" 
+         printf ">>> You can force at your own risks using the '-f' option.\n" 
+         printf ">>>===================================================================================<<<\n"
          ask_if_like_risk=1
 	 exit
        else
@@ -451,7 +478,7 @@ fi
 trap 'kill -TERM $PID; perst_factory $c' TERM INT
 # flash card with corresponding binary
 bdf=`echo ${allcards_array[$c]}`
-echo "Entering card locking mechanism ..."
+echo "${blue}Entering card locking mechanism ...${normal}"
 
 
 #LockDir=/var/ocxl/oc-flash-script.lock
@@ -462,12 +489,12 @@ LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
 
 # mutual exclusion
 if mkdir $LockDir 2>/dev/null; then
-	echo "$LockDir created"
-	trap 'rm -rf "$LockDir";echo "$LockDir removed at the end of oc-flash-script"' EXIT # This prepares a cleaning of the newly created dir
+	echo "${blue}$LockDir created${normal}"
+	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT # This prepares a cleaning of the newly created dir
 					      # when script will output						
 					      
 else
-	printf "${bold}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance of this script or oc-reset maybe running\n"
+	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance of this script or oc-reset maybe running\n"
 
   DateLastBoot=`who -b | awk '{print $3 " " $4}'`
   EpochLastBoot=`date -d "$DateLastBoot" +%s`
@@ -488,7 +515,7 @@ else
      mkdir $LockDir
   else
      echo "$LockDir modified AFTER last boot"
-     printf "${bold}ERROR:${normal} Another instance of this script or oc-reset is running\n"
+     printf "${bold}${red}ERROR:${normal} Another instance of this script or oc-reset is running\n"
      echo "Exiting..."
      exit 10
   fi
@@ -515,10 +542,10 @@ if [ $RC -eq 0 ]; then
 	if [ $PR_mode == 0 ]; then
 		#  reload code from Flash (oc-reload calls a oc_reset)
 		#  As we call routines, not shells, we keep the current card LockDir
-      		printf "Auto reload the image from flash:\n"
+      		printf " Auto reloading the image from flash.\n"
       		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
 	else
 		#  In PR mode, reset cleans the logic but could be not mandatory
-		reset_card $bdf factory "Resetting OpenCAPI Adapter $bdf"
+		reset_card $bdf factory " Resetting OpenCAPI card in slot $bdf"
 	fi
 fi

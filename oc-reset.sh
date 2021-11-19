@@ -21,6 +21,13 @@ package_root=$(dirname $package_root)
 # echo "DEBUG : Package_root is : $package_root"
 source $package_root/oc-utils-common.sh
 
+bold=$(tput bold)
+italic=$(tput sitm)
+blue=$(tput setaf 4)
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+normal=$(tput sgr0)
+
 program=`basename "$0"`
 mylock=0  # var used to remove lock dir only if we created it
 
@@ -52,7 +59,7 @@ function select_cards() {
 
     # get number of cards in system
     n=`ls /dev/ocxl 2>/dev/null | wc -l`
-    printf "$n OpenCAPI cards found.\n"
+    printf "${bold}  $n OpenCAPI cards found.${normal}\n"
 
     # Find all OC cards in the system
     allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
@@ -78,7 +85,7 @@ function select_cards() {
         if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
           parse_info=($line)
           board_vendor[$i]=${parse_info[1]}
-          printf "%-8s %-30s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]} - ${board_vendor[$i]}"
+          printf "%-8s %-30s %-20s \n" "${bold}Card $card_slot_hex:${normal} ${allcards_array[$i]} - ${board_vendor[$i]}"
         fi
       done < "$package_root/oc-devices"
       i=$[$i+1]
@@ -88,7 +95,7 @@ function select_cards() {
     # prompt card until input is in list of available slots
     while ! [[ "$c" =~ ^($slot_enum)$ ]]
     do
-        echo -e "Which card number do you want to reset? [$slot_enum]: \c" | sed 's/|/-/g'
+        echo -e "  ${green}Which card number do you want to reset? [${bold}$slot_enum${normal}]: \c" | sed 's/|/-/g'
         read -r c
      done
     printf "\n"
@@ -110,11 +117,11 @@ while getopts ":C:Vh" opt; do
       exit 0
       ;;
       \?)
-      printf "${bold}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
+      printf "${bold}${red}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
       exit 1
       ;;
       :)
-      printf "${bold}ERROR:${normal} Option -$OPTARG requires an argument.\n" >&2
+      printf "${bold}${red}ERROR:${normal} Option -$OPTARG requires an argument.\n" >&2
       exit 1
       ;;
   esac
@@ -128,7 +135,7 @@ ulimit -c unlimited
 # we get number of cards in system
 ocapi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $ocapi_check -eq 0 ]; then
-  printf "${bold}ERROR:${normal} No OpenCAPI devices found\n"
+  printf "${bold}${red}ERROR:${normal} No OpenCAPI devices found\n"
   exit 1
 fi
 
@@ -147,20 +154,20 @@ fi
 
 
 
-	echo "card selected is : $card"
-        echo "Checking if card is locked"
+	#echo "card selected is : $card"
+        echo "${blue}Checking if card $card is locked${normal}"
 #	echo "DEBUG : LockDirPrefix is $LockDirPrefix"
         LockDir="$LockDirPrefix$card"
 #	echo "DEBUG : LockDir is $LockDir"
         # make LockDir if not present
         # mutual exclusion
         if mkdir $LockDir 2>/dev/null; then
-		echo "$LockDir created during oc-reset"
-		trap 'rm -rf "$LockDir";echo "$LockDir removed"' EXIT # This prepares a cleaning of the newly created dir
+		echo "${blue}$LockDir created during oc-reset${normal}"
+		trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
 					      # when script will output
        else
 		echo
-		printf "${bold}ERROR:${normal} $LockDir is already existing\n"
+		printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
 		printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
  		exit 10
 	fi
@@ -168,5 +175,5 @@ fi
 
 
 
-reset_card $card factory "Resetting OpenCAPI Adapter $card"
+reset_card $card factory " Resetting OpenCAPI card in slot $card"
 

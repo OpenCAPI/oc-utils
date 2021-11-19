@@ -17,7 +17,13 @@ version=1.1
 # revision 1.1 adds a check for lock file per card to avoid resetting a card under programmation
 
 log_file=/var/log/capi-utils.log
-LockDirPrefix=/var/ocxl/locked_card
+LockDirPrefix=/var/ocxl/locked_card_
+
+bold=$(tput bold)
+blue=$(tput setaf 4)
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+normal=$(tput sgr0)
 
 # Reset a card
 function reset_card() {
@@ -48,7 +54,7 @@ function reset_card() {
 
   [ -n "$3" ] && printf "$3\n" || printf "Preparing to reset card\n"
   [ -n "$4" ] && reset_timeout=$4
-  printf "Resetting card $1: Reset! \n"
+  #printf " Resetting card $1: Reset! \n"
   printf 0 > /sys/bus/pci/slots/$slot/power
   printf 1 > /sys/bus/pci/slots/$slot/power
   while true; do
@@ -69,7 +75,7 @@ function reset_card() {
   if [ $ret_status -ne 0 ]; then
     exit 1
   else
-    printf "Reset complete\n"
+    printf "${green}Reset completed.${normal}\n"
   fi
 }
 
@@ -105,7 +111,7 @@ function reload_card() {
 # added by collin for image_reload
 # tuned for the new slot naming scheme
   setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 638.B=01
-  printf "Resetting card $1: Image Reloading ... \n"
+  printf " Resetting card $1 after Image Reloading \n"
 
 # subsys=$(lspci -s `cat /sys/bus/pci/slots/JP91NVB1/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
   subsys=$(lspci -s `cat /sys/bus/pci/slots/$slot/address`.0 -vvv |grep Subsystem |awk '{ print $NF }')
@@ -145,7 +151,7 @@ function reload_card() {
   if [ $ret_status -ne 0 ]; then
     exit 1
   else
-    printf "Image Reload complete\n"
+    printf "${green}Image Reload ${bold}completed.${normal}\n"
   fi
 }
 

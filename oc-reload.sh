@@ -20,7 +20,14 @@
 package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
 
+bold=$(tput bold)
+blue=$(tput setaf 4)
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+normal=$(tput sgr0)
+
 program=`basename "$0"`
+mylock=0  # var used to remove lock dir only if we created it
 
 # Print usage message helper function
 function usage() {
@@ -49,7 +56,7 @@ function select_cards() {
 
     # get number of cards in system
     n=`ls /dev/ocxl 2>/dev/null | wc -l`
-    printf "$n OpenCAPI cards found.\n"
+    printf "${bold}  $n OpenCAPI cards found.${normal}\n"
 
     # Find all OC cards in the system
     allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
@@ -75,7 +82,7 @@ function select_cards() {
         if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
           parse_info=($line)
           board_vendor[$i]=${parse_info[1]}
-          printf "%-8s %-30s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]} - ${board_vendor[$i]}"
+          printf "%-8s %-30s %-20s \n" "${bold}Card $card_slot_hex${normal}: ${allcards_array[$i]} - ${board_vendor[$i]}"
         fi
       done < "$package_root/oc-devices"
       i=$[$i+1]
@@ -85,7 +92,7 @@ function select_cards() {
     # prompt card until input is not in list of available slots
     while ! [[ "$c" =~ ^($slot_enum)$ ]]
     do
-        echo -e "Which card number do you want to reload FPGA code from Flash and reset? [$slot_enum]: \c" | sed 's/|/-/g'
+        echo -e "${green}  From which card number do you want to reload the Flash code? [${bold}$slot_enum]: ${normal}\c" | sed 's/|/-/g'
         read -r c
      done
     printf "\n"
@@ -142,26 +149,45 @@ else
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
 
+        #echo "card selected is : $card"
+        echo "${blue}Checking if card $card is locked${normal}"
+#       echo "DEBUG : LockDirPrefix is $LockDirPrefix"
+        LockDir="$LockDirPrefix$card"
+#       echo "DEBUG : LockDir is $LockDir"
+        # make LockDir if not present
+        # mutual exclusion
+        if mkdir $LockDir 2>/dev/null; then
+                echo "${blue}$LockDir created during oc-reset${normal}"
+                trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
+                                              # when script will output
+       else
+                echo
+                printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
+                printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
+                exit 10
+        fi
+
+
+
 subsys=$(cat /sys/bus/pci/devices/${card}/subsystem_device)
 # adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
-
-#if [ $subsys == "0x066a" ]; then
 if [[ $subsys = @("0x066a"|"0x060d") ]]; then 
-  printf "Warning - known issue on 250SOC reload - you may need to reboot the server\n"
-  reload_card $card factory "Image Reloading for OpenCAPI Adapter $card (250SOC)"
+  printf " ${red}${bold}Warning:${normal}There is still a known issue on the 250SOC reload:\n"
+  printf "         You may need to reboot the server to reload the code just programmed in Flash.\n\n"
+  reload_card $card factory " Reloading code from Flash for the OpenCAPI card in slot $card"
 
 #otherwise use the src/img_reload.c compiled code
 else
   start=`date +%s`
-  $package_root/oc-reload --devicebdf $card  --startaddr 0x0 "Image Reloading for OpenCAPI Adapter $card (new images)"
+  $package_root/oc-reload --devicebdf $card  --startaddr 0x0 " Reloading code from Flash for the OpenCAPI card in slot $card (new images)"
   end=`date +%s`
 
   runtime=$((end-start))
   # in oc-reload we wait for 1 sec to see if EOS is set to 1, if not then a timeout occurs
   if [ $runtime -ge 1 ]; then
      #echo "reload with the reload_card function (old image detected)"
-     reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+     reload_card $card factory " Reloading code from Flash for the OpenCAPI card in slot $card"
   else
-     reset_card $card factory "Resetting OpenCAPI Adapter $card"
+     reset_card $card factory " Resetting card $card after Image Reloading"
   fi
 fi
