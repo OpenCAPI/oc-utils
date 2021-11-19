@@ -42,6 +42,7 @@ function usage() {
   echo "      Or:"
   echo -e "        \033[33m sudo ./oc-reload.sh -C 4 \033[0m"
   echo "    [-V] Print program version (${version})"
+  echo "    [-L] Force No Lock"
   echo "    [-h] Print this help message."
   echo
   echo "Utility to reload FPGA image from the FPGA Flash."
@@ -101,9 +102,10 @@ function select_cards() {
 
 # OPTIND Reset done in order to use getopts even if not the first time getopts is called (when sourcing this script by oc-flash-script.sh for example)
 OPTIND=1
+NO_LOCK=0
 
 # Parse any options given on the command line
-while getopts ":C:Vh" opt; do
+while getopts ":C:VhL" opt; do
   case ${opt} in
       C)
       card=$OPTARG
@@ -115,6 +117,9 @@ while getopts ":C:Vh" opt; do
       h)
       usage;
       exit 0
+      ;;
+      L)
+      NO_LOCK=1
       ;;
       \?)
       printf "${bold}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
@@ -161,10 +166,12 @@ fi
                 trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
                                               # when script will output
        else
-                echo
-                printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
-                printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
-                exit 10
+		if [ $NO_LOCK -eq 0 ]; then 
+                   echo
+                   printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
+                   printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
+                   exit 10
+		fi
         fi
 
 

@@ -462,7 +462,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  for(i=0;i<num_64KB_sectors;i++) {
    percentage = (int)(i*100/num_64KB_sectors);
    if( ((percentage %5) == 0) && (prev_percentage != percentage))
-      printf(" Erasing Sectors    : %d %% of %d sectors   \r", percentage, num_64KB_sectors);
+      printf(" Erasing Sectors    : \033[1m%d %%\033[0m of %d sectors   \r", percentage, num_64KB_sectors);
    fw_Write_Enable(devsel);
    fw_64KB_Sector_Erase(devsel, eaddress_secondary);
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
@@ -480,7 +480,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  for(i=0;i<num_256B_pages;i++) {
    percentage = (int)(i*100/num_256B_pages);
    if( ((percentage %5) == 0) && (prev_percentage != percentage))
-       printf("\033[1m Writing\033[0m image code : \033[1m%d\033[0m %% of %d pages                        \r", percentage, num_256B_pages);
+       printf("\033[1m Writing\033[0m image code : \033[1m%d %%\033[0m of %d pages                        \r", percentage, num_256B_pages);
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
      //edat = 0xFFFFFFFF;
@@ -495,7 +495,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  }
  ept = svt = time(NULL); 
  ept = ept - spt;
- printf(" Writing Image code :  \033[1mcompleted\033[0m in   %d seconds           \n", (int)ept);
+ printf(" Writing Image code : \033[1mcompleted\033[0m in   %d seconds           \n", (int)ept);
 
  //printf("Entering Read Segment\n");
 	
@@ -520,7 +520,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  }
  et = evt = time(NULL); 
  evt = evt - svt;
- printf(" Checking Image code:  \033[1mcompleted\033[0m in   %d seconds           \n", (int)evt);
+ printf(" Checking Image code: \033[1mcompleted\033[0m in   %d seconds           \n", (int)evt);
  
  et = et - st;
  printf("\033[1m Total Time to write the new Image:  %d seconds.\033[0m           \n", (int)et);

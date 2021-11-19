@@ -543,7 +543,7 @@ if [ $RC -eq 0 ]; then
 		#  reload code from Flash (oc-reload calls a oc_reset)
 		#  As we call routines, not shells, we keep the current card LockDir
       		printf " Auto reloading the image from flash.\n"
-      		source $package_root/oc-reload.sh -C ${allcards_array[$c]}
+      		source $package_root/oc-reload.sh -L -C ${allcards_array[$c]}
 	else
 		#  In PR mode, reset cleans the logic but could be not mandatory
 		reset_card $bdf factory " Resetting OpenCAPI card in slot $bdf"
