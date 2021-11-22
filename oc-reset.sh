@@ -21,12 +21,11 @@ package_root=$(dirname $package_root)
 # echo "DEBUG : Package_root is : $package_root"
 source $package_root/oc-utils-common.sh
 
-bold=$(tput bold)
-italic=$(tput sitm)
-blue=$(tput setaf 4)
-red=$(tput setaf 1)
-green=$(tput setaf 2)
-normal=$(tput sgr0)
+bold=\\033[1m
+green=\\033[32m
+blue=\\033[34m
+red=\\033[31m
+normal=\\033[0m
 
 program=`basename "$0"`
 mylock=0  # var used to remove lock dir only if we created it
@@ -36,13 +35,13 @@ function usage() {
   echo "Usage:  sudo ${program} [OPTIONS]"
   echo "    [-C <card>] card to reset."
   echo "      Example: if you want to reset card"
-  echo -e "        \033[33m IBM,oc-snap.0004:00:00.1.0 \033[0m"
+  echo -e "        ${green} IBM,oc-snap.0004:00:00.1.0 ${normal}"
   echo "      Command line should be:"
-  echo -e "        \033[33m sudo ./oc-reset.sh -C IBM,oc-snap.0004:00:00.1.0 \033[0m"
+  echo -e "         ${green}sudo ./oc-reset.sh -C IBM,oc-snap.0004:00:00.1.0 ${normal}"
   echo "      Or:"
-  echo -e "        \033[33m sudo ./oc-reset.sh -C 0004:00:00.0 \033[0m"
+  echo -e "         ${green}sudo ./oc-reset.sh -C 0004:00:00.0 ${normal}"
   echo "      Or:"
-  echo -e "        \033[33m sudo ./oc-reset.sh -C 4 \033[0m"
+  echo -e "         ${green}sudo ./oc-reset.sh -C 4 ${normal}"
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
   echo
@@ -85,7 +84,7 @@ function select_cards() {
         if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
           parse_info=($line)
           board_vendor[$i]=${parse_info[1]}
-          printf "%-8s %-30s %-20s \n" "${bold}Card $card_slot_hex:${normal} ${allcards_array[$i]} - ${board_vendor[$i]}"
+          printf "${bold} Card%s:${normal} %s - %s \n" "$card_slot_hex" "${allcards_array[$i]}" "${board_vendor[$i]}"
         fi
       done < "$package_root/oc-devices"
       i=$[$i+1]
@@ -155,15 +154,15 @@ fi
 
 
 	#echo "card selected is : $card"
-        echo "${blue}Checking if card $card is locked${normal}"
+        echo -e "${blue}Checking if card $card is locked${normal}"
 #	echo "DEBUG : LockDirPrefix is $LockDirPrefix"
         LockDir="$LockDirPrefix$card"
 #	echo "DEBUG : LockDir is $LockDir"
         # make LockDir if not present
         # mutual exclusion
         if mkdir $LockDir 2>/dev/null; then
-		echo "${blue}$LockDir created during oc-reset${normal}"
-		trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
+		echo -e "${blue}$LockDir created during oc-reset${normal}"
+		trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
 					      # when script will output
        else
 		echo
