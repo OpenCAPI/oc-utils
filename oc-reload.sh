@@ -84,8 +84,7 @@ function select_cards() {
         if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
           parse_info=($line)
           board_vendor[$i]=${parse_info[1]}
-          #printf "%-8s %-30s %-20s \n" "${bold}Card $card_slot_hex${normal}: ${allcards_array[$i]} - ${board_vendor[$i]}"
-	  printf "${bold} Card%s:${normal} %s - %s \n" "$card_slot_hex" "${allcards_array[$i]}" "${board_vendor[$i]}"
+	  printf "${bold} Card %s:${normal} %s - %s \n" "$card_slot_hex" "${allcards_array[$i]}" "${board_vendor[$i]}"
         fi
       done < "$package_root/oc-devices"
       i=$[$i+1]
