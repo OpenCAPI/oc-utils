@@ -462,7 +462,7 @@ fi
 
 # update flash history file
 WhoIAm=$(logname 2>/dev/null)
-if [ "$WhoIAm" == ""]; then WhoIAm="no_login_name"; fi
+if [ "$WhoIAm" == "" ]; then WhoIAm="no_login_name"; fi
 if [ $flash_type == "SPIx8" ]; then
   	printf "%-29s %-20s %s %s\n" "$(date)" "$WhoIAm" $1 $2 > /var/ocxl/card$c
 else
