@@ -50,7 +50,7 @@ echo "         / /_/ / /_/ /  __/ / / / /___/ ___ |/ ____// /                  "
 echo "         \____/ .___/\___/_/ /_/\____/_/  |_/_/   /___/                  ${blue}"
 echo "   ___       /_/                           _             __            __"
 echo "  / _ \_______  ___ ________ ___ _  __ _  (_)__  ___ _  / /____  ___  / /"
-echo " / ___/ __/ _ \/ _ `/ __/ _ `/  ' \/  ' \/ / _ \/ _ `/ / __/ _ \/ _ \/ / "
+echo " / ___/ __/ _ \/ _ '/ __/ _ '/  ' \/  ' \/ / _ \/ _ '/ / __/ _ \/ _ \/ / "
 echo "/_/  /_/  \___/\_, /_/  \_,_/_/_/_/_/_/_/_/_//_/\_, /  \__/\___/\___/_/  "
 echo"               /___/                            /___/                     ${normal}"
 echo "_________________________________________________________________________"
@@ -490,8 +490,8 @@ echo "${blue}Entering card locking mechanism ...${normal}"
 #LockDir=/var/ocxl/oc-flash-script.lock
 LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
 
-# make cxl dir if not present
-# mkdir -p `dirname $LockDir`
+make cxl dir if not present
+mkdir -p `dirname $LockDir`
 
 # mutual exclusion
 if mkdir $LockDir 2>/dev/null; then
