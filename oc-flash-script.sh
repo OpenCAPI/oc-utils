@@ -219,6 +219,8 @@ while [ $i -lt $len ] ; do
       #display Card number : slot - Card name - date -name of last programming registered in file
 	  	printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
       #display the 2 names of bin files
+      echo
+      echo "Following are the provided binary files you'd like to flash:"
 			if [ ! -z ${bin_list[1]} ]; then
 	  	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
 			else
