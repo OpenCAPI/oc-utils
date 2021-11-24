@@ -41,12 +41,11 @@ sudo reboot
 Online updating had been verified on following FPGA cards with OC-Accel bitstreams:
 
 * AD9V3
-* AD9H3
+* AD9H3 (VU33P and VU35P)
+* AD9H7
 * BW250SOC
 
 on System FP5290G2, IC922, S924 and AC922 with specific firmware (skiboot) and OS kernels. 
-
-Note AD9H7 online flashing is not available yet
 
 Contact your technical support team for more information.
 
