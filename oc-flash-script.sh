@@ -161,6 +161,7 @@ printf "\n"
 n=`ls /dev/ocxl 2>/dev/null | wc -l`
 printf " In this server:  ${bold}$n${normal} OpenCAPI card(s) found."
 # touch history files if not present
+mkdir -p /var/ocxl
 for i in `seq 0 $(($n - 1))`; do
   f="/var/ocxl/card$i"
   if [[ ! -f $f ]]; then
