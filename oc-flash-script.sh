@@ -461,12 +461,19 @@ fi
 #=======================
 
 # update flash history file
-WhoIAm=$(logname 2>/dev/null)
-if [ "$WhoIAm" == "" ]; then WhoIAm="no_login_name"; fi
+# Note: logname command allocated to a variable like in a="$(logname)" makes this specific script just stop ! That's why the "if logname" below
 if [ $flash_type == "SPIx8" ]; then
-  	printf "%-29s %-20s %s %s\n" "$(date)" "$WhoIAm" $1 $2 > /var/ocxl/card$c
+  if logname >/dev/null 2>&1; then # logname in a container returns nothing and fails
+  	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
+  else
+    printf "%-29s %-20s %s %s\n" "$(date)" "no_login" $1 $2 > /var/ocxl/card$c
+  fi
 else
-  	printf "%-29s %-20s %s\n" "$(date)" "$WhoIAm" $1 > /var/ocxl/card$c
+  if logname >/dev/null 2>&1; then # logname in a container returns nothing and fails
+  	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
+  else
+    printf "%-29s %-20s %s\n" "$(date)" "no_login" $1 > /var/ocxl/card$c
+  fi
 fi
 # Check if lowlevel flash utility is existing and executable
 if [ ! -x $package_root/oc-flash ]; then
