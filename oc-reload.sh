@@ -157,23 +157,47 @@ fi
 
         #echo "card selected is : $card"
         echo -e "${blue}Checking if card $card is locked${normal}"
-#       echo "DEBUG : LockDirPrefix is $LockDirPrefix"
-        LockDir="$LockDirPrefix$card"
-#       echo "DEBUG : LockDir is $LockDir"
-        # make LockDir if not present
-        # mutual exclusion
-        if mkdir $LockDir 2>/dev/null; then
-                echo -e "${blue}$LockDir created during oc-reset${normal}"
-                trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
-                                              # when script will output
-       else
-		if [ $NO_LOCK -eq 0 ]; then 
-                   echo
-                   printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
-                   printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
-                   exit 10
+	
+LockDir="$LockDirPrefix$card"
+# make ocxl dir if not present
+mkdir -p `dirname $LockDir`
+# mutual exclusion
+if mkdir $LockDir 2>/dev/null; then
+	echo -e "${blue}$LockDir created during oc-reload${normal}"
+	trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
+                                                                                 # when script will output
+else
+	if [ $NO_LOCK -eq 0 ]; then 
+		echo
+                printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
+                printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
+
+		DateLastBoot=`who -b | awk '{print $3 " " $4}'`
+		EpochLastBoot=`date -d "$DateLastBoot" +%s`
+
+		EpochLockDir=`stat --format=%Y $LockDir`
+		DateLockDir=`date --date @$EpochLockDir`
+
+		echo
+		echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+		echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+
+		echo;echo "======================================================="
+		if [ $EpochLockDir -lt $EpochLastBoot ]; then
+			echo "$LockDir modified BEFORE last boot"
+			echo "LOCK is not supposed to still be here"
+			echo "  ==> Deleting and recreating $LockDir"
+			rmdir $LockDir
+			mkdir $LockDir
+		else
+			echo "$LockDir modified AFTER last boot"
+			printf "${bold}${red}ERROR:${normal} Another instance of this script or oc-reset/reload is running\n"
+			echo "Exiting..."
+			exit 10
 		fi
-        fi
+	fi
+
+fi
 
 
 

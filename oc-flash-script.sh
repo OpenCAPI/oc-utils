@@ -412,8 +412,8 @@ fi
 
 printf "\n"
 #=======================
-#add test for PR to check that PR number of partial bin file corrspond to the static image
-ask_if_like_risk=0
+#add test for PR to check that PR number of partial bin file corresponds to the static image
+PR_risk=0
 if (($force != 1)); then
 if [ $PR_mode == 1 ]; then
     #extract the card name of the input argument
@@ -421,7 +421,7 @@ if [ $PR_mode == 1 ]; then
     if [ -z "$PRC_dynamic" ]; then
       printf ">>> ${bold}WARNING :${normal} NO dynamic PR Code in filename! <<<\n" 
       printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
-      ask_if_like_risk=1
+      PR_risk=1
     fi
 
     #extract PRC_static from the name of the bin file logged in /var/ocxl/cardxx
@@ -430,7 +430,7 @@ if [ $PR_mode == 1 ]; then
     if [ -z "$PRC_static" ]; then
       printf ">>> ${bold}WARNING :${normal} NO static PR Code found in filename logged in Flash log files! <<<\n" 
       printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
-      ask_if_like_risk=1
+      PR_risk=1
     else
        if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
          printf "\n>>>===================================================================================<<<\n"
@@ -438,22 +438,28 @@ if [ $PR_mode == 1 ]; then
          printf ">>> You may crash and lose your card if you force the programming.\n" 
          printf ">>> You can force at your own risks using the '-f' option.\n" 
          printf ">>>===================================================================================<<<\n"
-         ask_if_like_risk=1
+         PR_risk=1
 	 exit
        else
          printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
-         ask_if_like_risk=0
+         PR_risk=0
        fi
     fi
 
-    if [ $ask_if_like_risk == 1 ]; then
-      read -p "Do you want to continue? [y/n] " yn
-      case $yn in
-        [Yy]* ) ;;
-        [Nn]* ) exit;;
-        * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-      esac
-    fi
+ if (($force != 1)); then
+ 	if [ $PR_risk == 1 ]; then
+		read -p "Do you want to continue? [y/n] " yn
+		case $yn in
+			[Yy]* ) ;;
+		 	[Nn]* ) exit;;
+		 	* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+ 		esac
+ 	fi
+ else 
+	if  [ $PR_risk == 1 ]; then
+		 printf "Force mode was required, but we exit safely due to previous errors with RC = 10"
+		exit 10
+	fi
 fi
 fi
 #=======================
