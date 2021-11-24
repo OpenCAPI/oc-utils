@@ -460,6 +460,7 @@ if [ $PR_mode == 1 ]; then
 		 printf "Force mode was required, but we exit safely due to previous errors with RC = 10"
 		exit 10
 	fi
+ fi
 fi
 fi
 #=======================
@@ -490,7 +491,7 @@ echo "${blue}Entering card locking mechanism ...${normal}"
 #LockDir=/var/ocxl/oc-flash-script.lock
 LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
 
-make cxl dir if not present
+#make cxl dir if not present
 mkdir -p `dirname $LockDir`
 
 # mutual exclusion
