@@ -184,17 +184,18 @@ fi
 allcards_array=($allcards)
 
 # print card information and flash history
-i=0;
-    slot_enum=""
-    delimiter="|"
+i=0
+len=${#allcards_array[@]}
+slot_enum=""
+delimiter="|"
 
 # Collecting informations from oc-devices file    
 #list of ".1" slots returned by lspci containing "062b"
-while read d ; do
-        #extract the subsystem_device id to know the board id
+while [ $i -lt $len ] ; do
+  #extract the subsystem_device id to know the board id
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	# translate the slot number string to a hexa number
-  	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
+  card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
 	# build a slot_enum of all card numbers and use it in the test menu to test user input
 	if [ -z "$slot_enum" ]; then
 		slot_enum=$card_slot_hex
@@ -203,30 +204,30 @@ while read d ; do
 	fi
       
 	f=$(cat /var/ocxl/card$i)
-      	while IFS='' read -r line || [[ -n $line ]]; do
-	    	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
-		  	parse_info=($line)
-		  	board_vendor[$i]=${parse_info[1]}
-		  	fpga_manuf[$i]=${parse_info[2]}
-		  	flash_partition[$i]=${parse_info[3]}
-		  	flash_block[$i]=${parse_info[4]}
-		  	flash_interface[$i]=${parse_info[5]}
-		  	flash_secondary[$i]=${parse_info[6]}
-		  	component_list=(${line:6:23})
-		  	bin_list=(${f:51})
-                        #display Card number : slot - Card name - date -name of last programming registered in file
-		  	printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
-                        #display the 2 names of bin files
+  while IFS='' read -r line || [[ -n $line ]]; do
+	 	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
+	  	parse_info=($line)
+	  	board_vendor[$i]=${parse_info[1]}
+	  	fpga_manuf[$i]=${parse_info[2]}
+	  	flash_partition[$i]=${parse_info[3]}
+	  	flash_block[$i]=${parse_info[4]}
+	  	flash_interface[$i]=${parse_info[5]}
+	  	flash_secondary[$i]=${parse_info[6]}
+	  	component_list=(${line:6:23})
+	  	bin_list=(${f:51})
+      #display Card number : slot - Card name - date -name of last programming registered in file
+	  	printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+      #display the 2 names of bin files
 			if [ ! -z ${bin_list[1]} ]; then
-		  	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
+	  	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
 			else
-		  	  printf "\t%s \n" "${bin_list[0]}"
+	  	  printf "\t%s \n" "${bin_list[0]}"
 			fi
-		  	echo ""
-	    	fi
-      	done < "$package_root/oc-devices"
-      	i=$[$i+1]
-done < <( lspci -d "1014":"062b" -s .1 )
+	  	echo ""
+	 	fi
+  done < "$package_root/oc-devices"
+  i=$[$i+1]
+done
 
 printf "\n"
 # card is set via parameter since it is positive (otherwise default to -1)
