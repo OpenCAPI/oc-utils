@@ -127,7 +127,8 @@ int main(int argc, char *argv[])
   u32 temp;
   int vendor,device, subsys;
   int BIN,i, j;
-  strcpy(cfg_file,"/sys/bus/pci/devices/");
+  //strcpy(cfg_file,"/sys/bus/pci/devices/");
+  strcpy(cfg_file,"/OCXLSysBus/");
   strcat(cfg_file,cfgbdf);
   strcat(cfg_file,"/config");
 
