@@ -57,8 +57,8 @@ function reset_card() {
   #printf " Resetting card $1: Reset! \n"
   #printf 0 > /sys/bus/pci/slots/$slot/power
   #printf 1 > /sys/bus/pci/slots/$slot/power
-  printf 0 > /OCXLSysBus/slots/$slot/power
-  printf 1 > /OCXLSysBus/slots/$slot/power
+  printf 0 > /OCXLSys/bus/pci/slots/$slot/power
+  printf 1 > /OCXLSys/bus/pci/slots/$slot/power
   while true; do
     if [[ `ls /dev/ocxl 2>/dev/null | wc -l` == "$n" ]]; then
       break
@@ -123,14 +123,14 @@ function reload_card() {
     # Unbinding to prevent driver to access the card before power down
     # TO DO : need to look for all existing /sys/bus/pci/slots/$slot/address`.X entries
     # for the time beiing we consider only 2 entries as implemented in https://github.com/OpenCAPI/OpenCAPI3.0_Client_RefDesign/
-    echo  `cat /sys/bus/pci/slots/$slot/address`.0 > /OCXLSysBus/drivers/ocxl/unbind
-    echo  `cat /sys/bus/pci/slots/$slot/address`.1 > /OCXLSysBus/drivers/ocxl/unbind
+    echo  `cat /sys/bus/pci/slots/$slot/address`.0 > /OCXLSys/bus/pci/drivers/ocxl/unbind
+    echo  `cat /sys/bus/pci/slots/$slot/address`.1 > /OCXLSys/bus/pci/drivers/ocxl/unbind
     
     setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 634.B=11
     setpci -s `cat /sys/bus/pci/slots/$slot/address`.0 630.L=00020000
   fi
-  printf 0 > /OCXLSysBus/slots/$slot/power
-  if ! printf 1 > /OCXLSysBus/slots/$slot/power 2> /dev/null
+  printf 0 > /OCXLSys/bus/pci/slots/$slot/power
+  if ! printf 1 > /OCXLSys/bus/pci/slots/$slot/power 2> /dev/null
   then
     echo ">> Card can not power-on. Reboot or power-cycle needed for re-enumeration"
     exit 1
