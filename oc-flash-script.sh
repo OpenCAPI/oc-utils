@@ -501,7 +501,7 @@ if mkdir $LockDir 2>/dev/null; then
 					      # when script will output						
 					      
 else
-	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance of this script or oc-reset maybe running\n"
+	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance has locked the card\n"
 
   DateLastBoot=`who -b | awk '{print $3 " " $4}'`
   EpochLastBoot=`date -d "$DateLastBoot" +%s`
@@ -520,9 +520,13 @@ else
      echo "  ==> Deleting and recreating $LockDir"
      rmdir $LockDir
      mkdir $LockDir
+     echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
+     # The following line prepares a cleaning of the newly created dir
+     # when script will output
+     trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
   else
      echo "$LockDir modified AFTER last boot"
-     printf "${bold}${red}ERROR:${normal} Another instance of this script or oc-reset is running\n"
+     printf "${bold}${red}ERROR:${normal} Another instance has locked the card\n"
      echo "Exiting..."
      exit 10
   fi

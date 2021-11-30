@@ -162,12 +162,12 @@ mkdir -p `dirname $LockDir`
 # mutual exclusion
 if mkdir $LockDir 2>/dev/null; then
 	echo -e "${blue}$LockDir created during oc-reset${normal}"
-	trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
+	trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reset${normal}"' EXIT # This prepares a cleaning of the newly created dir
 										 # when script will output
 else
 	echo
 	printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
-	printf " => Card has been locked already (by another oc-flash-script or oc-reset/reload)\n"
+	printf " => Card has been locked already!\n"
 	
 	DateLastBoot=`who -b | awk '{print $3 " " $4}'`
 	EpochLastBoot=`date -d "$DateLastBoot" +%s`
@@ -184,9 +184,12 @@ else
 		echo "  ==> Deleting and recreating $LockDir"
 		rmdir $LockDir
 		mkdir $LockDir
+		# The following line prepares a cleaning of the newly created dir
+		# when script will output
+		trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir remove at the end of oc-reset${normal}"' EXIT
 	else
 		echo "$LockDir modified AFTER last boot"
-		printf "${bold}${red}ERROR:${normal} Another instance of this script or oc-reload/flash is running\n"
+		printf "${bold}${red}ERROR:${normal}  Card has been recently locked!\n"
 		echo "Exiting..."
 		exit 10
 	fi
