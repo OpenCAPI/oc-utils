@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
   }
 
   TRC_FLASH_CMD = TRC_OFF;
-  TRC_AXI = TRC_OFF;
+  //TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
   temp = config_read(CFG_SUBSYS,"Read subsys id of card");
