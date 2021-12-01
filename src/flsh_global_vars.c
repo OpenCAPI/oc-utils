@@ -21,7 +21,7 @@
 
 // Variables to control trace printing, one for each level of functionality.
 int TRC_CONFIG    = TRC_OFF;   // Show config_write / config_read commands
-int TRC_AXI       = TRC_OFF;   // Show axi_write / axi_read commands
+int TRC_AXI       = TRC_ON;   // Show axi_write / axi_read commands
 int TRC_FLASH     = TRC_OFF;   // Show flash_op commands
 int TRC_FLASH_CMD = TRC_OFF;   // Print msg on commands to FLASH facilities
 
