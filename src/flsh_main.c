@@ -43,7 +43,7 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr, i
 
 int main(int argc, char *argv[])
 {
-  static int verbose_flag = 0;
+  static int verbose_flag = 1;
   static int dualspi_mode_flag = 1; //default to assume x8 spi programming/loading
   static struct option long_options[] =
   {
