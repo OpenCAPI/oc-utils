@@ -417,7 +417,8 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
     exit(-1);
   }
 
-  strcpy(cfg_file, "/sys/bus/pci/devices/");
+  //strcpy(cfg_file, "/sys/bus/pci/devices/");
+  strcpy(cfg_file, "/OCXLSys/bus/pci/devices/");
   strcat(cfg_file, cfgbdf);
   strcat(cfg_file, "/config");
 
@@ -560,7 +561,8 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr, i
     exit(-1);
   }
 
-  strcpy(cfg_file, "/sys/bus/pci/devices/");
+  //strcpy(cfg_file, "/sys/bus/pci/devices/");
+  strcpy(cfg_file, "/OCXLSys/bus/pci/devices/");
   strcat(cfg_file, cfgbdf);
   strcat(cfg_file, "/config");
 
