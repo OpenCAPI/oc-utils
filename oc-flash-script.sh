@@ -491,17 +491,19 @@ echo "${blue}Entering card locking mechanism ...${normal}"
 #LockDir=/var/ocxl/oc-flash-script.lock
 LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
 
-#make cxl dir if not present
+# First step: create the dirname of $LockDir (typically /var/ocxl)
+# in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
 mkdir -p `dirname $LockDir`
 
-# mutual exclusion
+# Second step: trying to create $LockDir locking directory (typically into /var/ocxl)
+# and testing if the creation succeeded ("mkdir" fails if dir already exists)
 if mkdir $LockDir 2>/dev/null; then
 	echo "${blue}$LockDir created${normal}"
-	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT # This prepares a cleaning of the newly created dir
-					      # when script will output						
+	# The following line prepares a cleaning of the newly created dir when script will output
+	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT	
 					      
 else
-	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Another instance has locked the card\n"
+	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Card has been locked already!\n"
 
   DateLastBoot=`who -b | awk '{print $3 " " $4}'`
   EpochLastBoot=`date -d "$DateLastBoot" +%s`
@@ -509,26 +511,24 @@ else
   EpochLockDir=`stat --format=%Y $LockDir`
   DateLockDir=`date --date @$EpochLockDir`
 
-  echo
-  echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
-  echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
-
-  echo;echo "======================================================="
   if [ $EpochLockDir -lt $EpochLastBoot ]; then
-     echo "$LockDir modified BEFORE last boot"
-     echo "LOCK is not supposed to still be here"
-     echo "  ==> Deleting and recreating $LockDir"
-     rmdir $LockDir
-     mkdir $LockDir
-     echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
-     # The following line prepares a cleaning of the newly created dir
-     # when script will output
-     trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
+	echo
+	echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+	echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+	echo "$LockDir modified BEFORE last boot"
+	echo;echo "======================================================="
+	echo "LOCK is not supposed to still be here"
+	echo "  ==> Deleting and recreating $LockDir"
+	rmdir $LockDir
+	mkdir $LockDir
+	echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
+	# The following line prepares a cleaning of the newly created dir when script will output
+	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
   else
-     echo "$LockDir modified AFTER last boot"
-     printf "${bold}${red}ERROR:${normal} Another instance has locked the card\n"
-     echo "Exiting..."
-     exit 10
+	echo "$LockDir modified AFTER last boot"
+	printf "${bold}${red}ERROR:${normal}  Card has been recently locked!\n"
+	echo "Exiting..."
+	exit 10
   fi
 
 fi

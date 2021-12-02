@@ -156,42 +156,45 @@ else
 fi
 
         #echo "card selected is : $card"
-        echo -e "${blue}Checking if card $card is locked${normal}"
-	
-LockDir="$LockDirPrefix$card"
-# make ocxl dir if not present
-mkdir -p `dirname $LockDir`
-# mutual exclusion
-if mkdir $LockDir 2>/dev/null; then
-	echo -e "${blue}$LockDir created during oc-reload${normal}"
-	trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reload${normal}"' EXIT # This prepares a cleaning of the newly created dir
-                                                                                 # when script will output
-else
-	if [ $NO_LOCK -eq 0 ]; then 
-		echo
-                printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
-                printf " => Card has been locked already!\n"
+        
 
+if [ $NO_LOCK -eq 0 ]; then
+	echo -e "${blue}Checking if card $card is locked${normal}"
+	LockDir="$LockDirPrefix$card"  # taken from oc-utils-common.sh
+	# First step: create the dirname of $LockDir (typically /var/ocxl)
+	# in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
+	mkdir -p `dirname $LockDir`
+	
+	# Second step: trying to create $LockDir locking directory (typically into /var/ocxl)
+	# and testing if the creation succeeded ("mkdir" fails if dir already exists)
+	if mkdir $LockDir 2>/dev/null; then
+		echo -e "${blue}$LockDir created during oc-reload${normal}"
+		# The following line prepares a cleaning of the newly created dir when script will output
+		trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reload${normal}"' EXIT # This prepares a cleaning of the newly created dir
+                                                                                # when script will output
+	else
+		echo
+		printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
+		printf " => Card has been locked already!\n"
+		
 		DateLastBoot=`who -b | awk '{print $3 " " $4}'`
 		EpochLastBoot=`date -d "$DateLastBoot" +%s`
-
+		
 		EpochLockDir=`stat --format=%Y $LockDir`
 		DateLockDir=`date --date @$EpochLockDir`
-
-		echo
-		echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
-		echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
-
-		echo;echo "======================================================="
+		
 		if [ $EpochLockDir -lt $EpochLastBoot ]; then
+			echo
+			echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+			echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
 			echo "$LockDir modified BEFORE last boot"
+			echo;echo "======================================================="echo "$LockDir modified BEFORE last boot"
 			echo "LOCK is not supposed to still be here"
 			echo "  ==> Deleting and recreating $LockDir"
 			rmdir $LockDir
 			mkdir $LockDir
 			echo -e "${blue}$LockDir created during oc-reload${normal}"
-			# The following line prepares a cleaning of the newly created dir
-			# when script will output
+			# The following line prepares a cleaning of the newly created dir when script will output
 			trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reload${normal}"' EXIT
 		else
 			echo "$LockDir modified AFTER last boot"

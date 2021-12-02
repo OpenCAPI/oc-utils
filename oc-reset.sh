@@ -155,15 +155,17 @@ fi
 
 #echo "card selected is : $card"
 echo -e "${blue}Checking if card $card is locked${normal}"
-LockDir="$LockDirPrefix$card"
-# make ocxl dir if not present
+LockDir="$LockDirPrefix$card"  # taken from oc-utils-common.sh
+# First step: create the dirname of $LockDir (typically /var/ocxl)
+# in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
 mkdir -p `dirname $LockDir`
-# make LockDir if not present
-# mutual exclusion
+
+# Second step: trying to create $LockDir locking directory (typically into /var/ocxl)
+# and testing if the creation succeeded ("mkdir" fails if dir already exists)
 if mkdir $LockDir 2>/dev/null; then
 	echo -e "${blue}$LockDir created during oc-reset${normal}"
-	trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reset${normal}"' EXIT # This prepares a cleaning of the newly created dir
-										 # when script will output
+	# The following line prepares a cleaning of the newly created dir when script will output
+	trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reset${normal}"' EXIT
 else
 	echo
 	printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
@@ -174,18 +176,18 @@ else
 	
 	EpochLockDir=`stat --format=%Y $LockDir`
 	DateLockDir=`date --date @$EpochLockDir`
-		echo
-	echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
-	echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
-		echo;echo "======================================================="
+
 	if [ $EpochLockDir -lt $EpochLastBoot ]; then
+		echo
+		echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+		echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
 		echo "$LockDir modified BEFORE last boot"
+		echo;echo "======================================================="
 		echo "LOCK is not supposed to still be here"
 		echo "  ==> Deleting and recreating $LockDir"
 		rmdir $LockDir
 		mkdir $LockDir
-		# The following line prepares a cleaning of the newly created dir
-		# when script will output
+		# The following line prepares a cleaning of the newly created dir when script will output
 		trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir remove at the end of oc-reset${normal}"' EXIT
 	else
 		echo "$LockDir modified AFTER last boot"
