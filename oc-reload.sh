@@ -155,27 +155,26 @@ else
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
 
-        #echo "card selected is : $card"
-        echo -e "${blue}Checking if card $card is locked${normal}"
-#       echo "DEBUG : LockDirPrefix is $LockDirPrefix"
-        LockDir="$LockDirPrefix$card"
-#       echo "DEBUG : LockDir is $LockDir"
-        # make LockDir if not present
-        # mutual exclusion
-        if mkdir $LockDir 2>/dev/null; then
-                echo -e "${blue}$LockDir created during oc-reset${normal}"
-                trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning of the newly created dir
-                                              # when script will output
-       else
-		if [ $NO_LOCK -eq 0 ]; then 
-                   echo
-                   printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
-                   printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
-                   exit 10
-		fi
-        fi
+#echo "card selected is : $card"
 
-
+if [ $NO_LOCK -eq 0 ]; then
+  echo -e "${blue}Checking if card $card is locked${normal}"
+  LockDir="$LockDirPrefix$card"
+  
+  # First, create the dirname of $LockDir (typically /var/ocxl) in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
+  mkdir -p `dirname $LockDir`
+  
+  # Second, trying to create $LockDir locking directory (typically into /var/ocxl) and testing if the creation succeeded ("mkdir" fails if dir already exists)
+  if mkdir $LockDir 2>/dev/null; then
+    echo -e "${blue}$LockDir created during oc-reload${normal}"
+    trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed${normal}"' EXIT # This prepares a cleaning action of the newly created dir when script exits
+  else
+    echo
+    printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
+    printf " => Card has been locked already (by oc-flash-script or oc-reset)\n"
+    exit 10
+  fi
+fi
 
 subsys=$(cat /sys/bus/pci/devices/${card}/subsystem_device)
 # adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
