@@ -92,14 +92,16 @@ function usage() {
   echo "Using non-functional bitstream data or aborting the process"
   echo "can leave your card in a state where a hardware debugger is"
   echo "required to make the card usable again."
-  echo "Exit codes : 0  : OK"
-  echo "           : 1  : argument issue"
-  echo "           : 2  : card or slot issue"
-  echo "           : 3  : file name doesn't match card name"
-  echo "           : 4  : dynamic code doesn't match static code"
-  echo "           : 10 : a card was locked by another process"
   echo
 }
+
+#  echo "Exit codes : 0  : OK"
+#  echo "           : 1  : argument issue"
+#  echo "           : 2  : card or slot issue"
+#  echo "           : 3  : file name doesn't match card name"
+#  echo "           : 4  : dynamic code doesn't match static code"
+#  echo "           : 5  : Utility capi-flash not found
+#  echo "           : 10 : a card was locked by another process"
 
 # Parse any options given on the command line
 while getopts ":C:faVhr" opt; do
@@ -384,7 +386,7 @@ fi
     file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
 	if [ $flash_type == "SPIx8" ]; then
 		file_to_program2=`echo $2 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-		if [[ ${file_to_program} !=  ${card_to_program} ]]; then
+		if [[ ${file_to_program} !=  ${file_to_program2} ]]; then
 			printf "\n>>>=================================================================================<<<\n"
 			printf ">>> ${bold}${red}ERROR:${normal} Inconsistency between primary ${bold}${file_to_program}${normal} and secondary ${bold}${file_to_program2}${normal} selected boards!!\n"
 			printf ">>>=================================================================================<<<\n"
@@ -394,6 +396,7 @@ fi
     #printf "The binary file you want to use is build for ${file_to_program}\n" 
     #extract the name of the slot 
     card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
+    echo "card_to_program=${card_to_program}"
     #printf " You have chosen to reprogram ${card_to_program}\n"
 
     if [ $PR_mode == 1 ]; then
@@ -438,7 +441,7 @@ printf "Continue to flash ${bold}$1${normal} ";
 if [ $flash_type == "SPIx8" ]; then
 	printf "and ${bold}$2${normal} "
 fi
-printf "to ${bold}card$c${normal}\n"
+printf "to ${bold}card position $c${normal}(slot$card4)\n"
 
 printf "\n"
 #=======================
@@ -457,6 +460,8 @@ if [ $PR_mode == 1 ]; then
     #extract PRC_static from the name of the bin file logged in /var/ocxl/cardxx
     PRC_static=`cat /var/ocxl/card$c | awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
     #printf "From log flash file : $c ${p[$c]:0:6} $PRC_static\n"
+    # TODO get the actual static code from the card itself
+    # PRC_static=`../oc-accel/software/tools/snap_peek 0x60 -C5`
     if [ -z "$PRC_static" ]; then
       printf ">>> ${bold}WARNING :${normal} NO static PR Code found in filename logged in Flash log files! <<<\n" 
       printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
@@ -488,6 +493,15 @@ if (($force != 1)); then
 				* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
 			esac
 		fi
+	else 
+		if (($automation != 1)); then
+			read -p "Do you want to continue? [y/n] " yn
+			case $yn in
+				[Yy]* ) ;;
+				[Nn]* ) exit;;
+				* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+			esac
+		fi
 	fi
  else 
 	if  [ $PR_risk == 1 ]; then
@@ -500,7 +514,7 @@ fi
 # Check if lowlevel flash utility is existing and executable
 if [ ! -x $package_root/oc-flash ]; then
     	printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
-    	exit 1
+    	exit 5
 fi
 
 # Reset to card/flash registers to known state (factory) 
