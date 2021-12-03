@@ -56,6 +56,7 @@ echo "              /___/                            /___/                     $
 echo "_________________________________________________________________________"
 
 force=0
+automation=0
 program=`basename "$0"`
 card=-1
 
@@ -78,6 +79,8 @@ function usage() {
   echo "    [-C <card>] card to flash."
   echo "    [-f] force execution without asking."
   echo "         warning: use with care e.g. for automation."
+  echo "    [-a] automated mode, prevents answering questions."
+  echo "         warning: exits if errors detected." 
  # echo "    [-r] Reset adapter to factory before writing to flash."
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
@@ -89,11 +92,17 @@ function usage() {
   echo "Using non-functional bitstream data or aborting the process"
   echo "can leave your card in a state where a hardware debugger is"
   echo "required to make the card usable again."
+  echo "Exit codes : 0  : OK"
+  echo "           : 1  : argument issue"
+  echo "           : 2  : card or slot issue"
+  echo "           : 3  : file name doesn't match card name"
+  echo "           : 4  : dynamic code doesn't match static code"
+  echo "           : 10 : a card was locked by another process"
   echo
 }
 
 # Parse any options given on the command line
-while getopts ":C:fVhr" opt; do
+while getopts ":C:faVhr" opt; do
   case ${opt} in
 # we kept C as option name to avoid changing existing scripts, but "C" now represents the slot number
 # when provided it will be converted temporarilly to a card relative position to maintain
@@ -106,6 +115,9 @@ while getopts ":C:fVhr" opt; do
       f)
       force=1
       ;;
+      a)
+      automation=1
+      ;;      
       r)
       printf "${bold}Warning:${normal} Factory/user reset option is unavailable in OC, ignoring -r option\n" >&2
       reset_factory=0
@@ -178,7 +190,7 @@ printf "${bold}%-7s %-35s %-29s %-20s %s${normal}\n" " #" "Card slot and name" "
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
 if [ -z "$allcards" ]; then
 	echo "No OpenCAPI cards found.\n"
-	exit 1
+	exit 2
 fi
 
 allcards_array=($allcards)
@@ -244,7 +256,7 @@ if [ ! -z $paramcard ]; then
 	if [ -z $ln ]; then
 		echo "Requested slot $card4 can't be found among :"
 		echo $allcards
-		exit 1
+		exit 2
 	else
 		ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
 		# echo "Corresponding slot is found at position: $ln"
@@ -293,16 +305,16 @@ FILE_EXT=${1##*.}
 if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
   if [[ $FILE_EXT != "rbf" ]]; then
     printf "${bold}${red}ERROR: ${normal}Wrong file extension: .rbf must be used for boards with Altera FPGA\n"
-    exit 0
+    exit 1
   fi
 elif [[ ${fpga_manuf[$c]} == "Xilinx" ]]; then
   if [[ $FILE_EXT != "bin" ]]; then
     printf "${bold}${red}ERROR: ${normal}Wrong file extension: .bin must be used for boards with Xilinx FPGA\n"
-    exit 0
+    exit 1
   fi
 else
   printf "${bold}${red}ERROR: ${normal}Card not listed in oc-devices or previous card failed or is not responding\n"
-  exit 0
+  exit 1
 fi
 
 # get flash address and block size
@@ -361,7 +373,7 @@ fi
 
 
 # card is set via parameter since it is positive
-if (($force != 1)); then
+#if (($force != 1)); then
   # prompt to confirm
   while true; do
     printf " ${bold}INFO:${normal} It is ${bold}highly recommended ${normal}to CLOSE all JTAG tools (SDK, hardware_manager) before programming\n";
@@ -370,6 +382,15 @@ if (($force != 1)); then
     #extract the card name of the input argument
     #file_to_program=`echo $1 |awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
     file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+	if [ $flash_type == "SPIx8" ]; then
+		file_to_program2=`echo $2 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+		if [[ ${file_to_program} !=  ${card_to_program} ]]; then
+			printf "\n>>>=================================================================================<<<\n"
+			printf ">>> ${bold}${red}ERROR:${normal} Inconsistency between primary ${bold}${file_to_program}${normal} and secondary ${bold}${file_to_program2}${normal} selected boards!!\n"
+			printf ">>>=================================================================================<<<\n"
+			exit 3    # we exit whenever the primary and secondary file are board inconsistent
+		fi
+	fi
     #printf "The binary file you want to use is build for ${file_to_program}\n" 
     #extract the name of the slot 
     card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
@@ -384,37 +405,46 @@ if (($force != 1)); then
         printf " and ${bold}$2${normal}\n" 
     fi
 
-    if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
-      printf "\n>>>=================================================================================<<<\n"
-      printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
-      printf ">>> You may crash and lose your card if you force the programming.\n" 
-      printf ">>> You can force at your own risks using the '-f' option.\n" 
-      printf ">>>=================================================================================<<<\n"
-      exit
-    #else
-      #printf "Binary filename you have provided correspond to the board you have chosen to program (${card_to_program})\n"
-    fi
+	if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
+		printf "\n>>>=================================================================================<<<\n"
+		printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
+		printf ">>> You may crash and lose your card if you force the programming.\n" 
+		printf ">>> You can force at your own risks using the '-f' option.\n" 
+		printf ">>>=================================================================================<<<\n"
+		
+		if (($force != 1)); then
+			if (($automation == 1)); then
+				exit 3
+			else
+				read -p "Do you really want to continue? [y/n] " yn
+				case $yn in
+					[Yy]* ) break;;
+					[Nn]* ) exit;;
+					* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+				esac
+			fi
+		else
+			printf "${bold}${red}WARNING: ${normal}Force mode was required, although file is not matching board !!\n"
+			break
+		fi
+	else
+		break
+	fi
 
-    read -p "  ${green}Do you confirm? [${bold}y/n${normal}] " yn
-    case $yn in
-      [Yy]* ) break;;
-      [Nn]* ) exit;;
-      * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-    esac
   done
-else
-  printf "Continue to flash ${bold}$1${normal} ";
-  if [ $flash_type == "SPIx8" ]; then
-    printf "and ${bold}$2${normal} " 
-  fi
-  printf "to ${bold}card$c${normal}\n"
+
+
+printf "Continue to flash ${bold}$1${normal} ";
+if [ $flash_type == "SPIx8" ]; then
+	printf "and ${bold}$2${normal} "
 fi
+printf "to ${bold}card$c${normal}\n"
 
 printf "\n"
 #=======================
 #add test for PR to check that PR number of partial bin file corresponds to the static image
 PR_risk=0
-if (($force != 1)); then
+
 if [ $PR_mode == 1 ]; then
     #extract the card name of the input argument
     PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
@@ -439,38 +469,34 @@ if [ $PR_mode == 1 ]; then
          printf ">>> You can force at your own risks using the '-f' option.\n" 
          printf ">>>===================================================================================<<<\n"
          PR_risk=1
-	 exit
        else
          printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
          PR_risk=0
-       fi
-    fi
-
- if (($force != 1)); then
- 	if [ $PR_risk == 1 ]; then
-		read -p "Do you want to continue? [y/n] " yn
-		case $yn in
-			[Yy]* ) ;;
-		 	[Nn]* ) exit;;
-		 	* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
- 		esac
- 	fi
+       fi   # end of "${PRC_dynamic} !=  ${PRC_static}" test
+    fi   # end of "-z "$PRC_static" test
+fi   # end of "PRmode == 1" test
+    
+if (($force != 1)); then
+	if [ $PR_risk == 1 ]; then
+		if (($automation == 1)); then
+			exit 4
+		else
+			read -p "Do you want to continue? [y/n] " yn
+			case $yn in
+				[Yy]* ) ;;
+				[Nn]* ) exit;;
+				* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+			esac
+		fi
+	fi
  else 
 	if  [ $PR_risk == 1 ]; then
-		 printf "Force mode was required, but we exit safely due to previous errors with RC = 10"
-		exit 10
+		 printf "${bold}${red}WARNING: ${normal}Force mode was required, we continue although there were errors !!"
 	fi
- fi
 fi
-fi
+
 #=======================
 
-# update flash history file
-if [ $flash_type == "SPIx8" ]; then
-  	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
-else
-  	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
-fi
 # Check if lowlevel flash utility is existing and executable
 if [ ! -x $package_root/oc-flash ]; then
     	printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
@@ -543,6 +569,14 @@ if [ $flash_type == "SPIx8" ]; then
 else
 	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
+
+# update flash history file
+if [ $flash_type == "SPIx8" ]; then
+  	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
+else
+  	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
+fi
+
 
 PID=$!
 wait $PID
