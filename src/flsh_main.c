@@ -37,10 +37,9 @@
 //  extern void CFG_NOP2(const char*, int, int, int*);
 #endif
 
-
 extern void my_test();
 int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag);
-int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr);
+int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag);
 
 int main(int argc, char *argv[])
 {
@@ -175,7 +174,7 @@ int main(int argc, char *argv[])
     printf("Verbose in use\n");
 
   if(dualspi_mode_flag) {
-    printf("Using spi x8 mode\n");
+    printf(" Using spi x8 mode\n");
     if(binfile[0] == '\0') {
       printf("ERROR: Must supply primary bitstream\n");
       exit(-1);
@@ -213,9 +212,9 @@ int main(int argc, char *argv[])
 //adding specific code for 250SOC card (subsystem_id = 0x066A)
      printf("----------------------------------\n");
      printf("Card with ZynqMP Detected\n");
-     printf("Programming Flash with bitstream:\n    %s\n",binfile);
-     update_image_zynqmp(binfile,cfgbdf,start_addr);
-     printf("Finished Programming Sequence\n");
+     printf("Programming Flash with bitstream:\n    %s\n\n",binfile);
+     update_image_zynqmp(binfile,cfgbdf,start_addr, verbose_flag);
+     printf("\033[1mFinished Programming Sequence\033[0m\n");
      printf("----------------------------------\n");
 
 
@@ -271,18 +270,19 @@ int main(int argc, char *argv[])
   num_package_lastburst = num_package_icap - num_burst * icap_burst_size;
 
   if(verbose_flag) {
-      printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
-      printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n", 
+      printf(" Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
+      printf(" Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n", 
             num_burst, icap_burst_size, num_package_lastburst);
   }
 
   spt = time(NULL); 
   int print_done = 0;
 
+  printf("___________________________________________________________________________\n");
   for(i=0;i<num_burst;i++) {
     percentage = (int)(i*100/num_burst);
     if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
-       printf("Writing partial image code : %d %% of %d pages                        \r", percentage, num_burst);
+       printf("\e[1m  Writing\e[0m partial image code : \e[1m%d\e[0m %% of %d pages                        \r", percentage, num_burst);
        fflush(stdout);
     }
     for (j=0;j<icap_burst_size;j++) {
@@ -340,7 +340,8 @@ int main(int argc, char *argv[])
  
   ept = time(NULL); 
   ept = ept - spt;
-  printf("Partial reprogramming completed in   %d seconds           \n", (int)ept);
+  printf("\e[1m Partial reprogramming  \033[1mcompleted\033[0m ok in   %d seconds\e[0m           \n", (int)ept);
+  printf("___________________________________________________________________________\n");
 
 //-----------------------
 
@@ -352,8 +353,7 @@ int main(int argc, char *argv[])
 //===============================================
     } else { // if(subsys != 0x066A) and if (!PR_mode)
 // default code : not a 250SOC and not a PartialReconfiguration
-    printf("----------------------------------\n");
-    printf("QSPI master core setup: started\r");
+    printf(" QSPI master core setup: started\r");
     QSPI_setup();          // Reset and set up Quad SPI core
     if(verbose_flag) 
       read_QSPI_regs();
@@ -365,19 +365,19 @@ int main(int argc, char *argv[])
     if(verbose_flag) 
       read_ICAP_regs();
 
-    printf("QSPI master core setup: completed\n");
+    printf(" QSPI master core setup: completed\n");
+    printf("\n----------------------------------\n");
 
-    printf("----------------------------------\n");
-    printf("Programming Primary SPI with primary bitstream:\n    %s\n",binfile);
+    printf("\033[1m Programming Primary SPI with primary bitstream:\033[0m\n    %s\n",binfile);
     update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr, verbose_flag);
 
     if(dualspi_mode_flag) {
       printf("----------------------------------\n");
-      printf("Programming Secondary SPI with secondary bitstream:\n    %s\n",binfile2);
+      printf("\033[1m Programming Secondary SPI with secondary bitstream:\033[0m\n    %s\n",binfile2);
       update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr, verbose_flag);
     }
 
-    printf("Finished Programming Sequence\n");
+    printf("\033[1m Finished Programming Sequence\033[0m\n");
     printf("----------------------------------\n");
   
     Check_Accumulated_Errors();
@@ -433,7 +433,8 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
   } else {
     fsize = tempstat.st_size;
   }
-  printf("\nFlashing file of size %ld bytes\n",fsize);
+  if (verbose_flag)
+    printf("\n Flashing file of size %ld bytes\n",fsize);
   num_64KB_sectors = fsize/65536 + 1;
   num_256B_pages = fsize/256 + 1;
   if(verbose_flag) {
@@ -461,7 +462,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  for(i=0;i<num_64KB_sectors;i++) {
    percentage = (int)(i*100/num_64KB_sectors);
    if( ((percentage %5) == 0) && (prev_percentage != percentage))
-      printf("Erasing Sectors    : %d %% of %d sectors   \r", percentage, num_64KB_sectors);
+      printf(" Erasing Sectors    : \033[1m%d %%\033[0m of %d sectors   \r", percentage, num_64KB_sectors);
    fw_Write_Enable(devsel);
    fw_64KB_Sector_Erase(devsel, eaddress_secondary);
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(devsel);
@@ -471,7 +472,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 
  eet = spt = time(NULL);
  eet = eet - set;
- printf("Erasing Sectors    : completed in   %d seconds           \n", (int)eet);
+ printf(" Erasing Sectors    : \033[1mcompleted\033[0m in   %d seconds           \n", (int)eet);
  
  //printf("Entering Program Segment\n");
 
@@ -479,7 +480,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  for(i=0;i<num_256B_pages;i++) {
    percentage = (int)(i*100/num_256B_pages);
    if( ((percentage %5) == 0) && (prev_percentage != percentage))
-       printf("Writing image code : %d %% of %d pages                        \r", percentage, num_256B_pages);
+       printf("\033[1m Writing\033[0m image code : \033[1m%d %%\033[0m of %d pages                        \r", percentage, num_256B_pages);
    dif = read(BIN,&wdata,256);
    if (!(dif)) {
      //edat = 0xFFFFFFFF;
@@ -494,7 +495,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  }
  ept = svt = time(NULL); 
  ept = ept - spt;
- printf("Writing Image code : completed in   %d seconds           \n", (int)ept);
+ printf(" Writing Image code : \033[1mcompleted\033[0m in   %d seconds           \n", (int)ept);
 
  //printf("Entering Read Segment\n");
 	
@@ -503,7 +504,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  for(i=0;i<num_256B_pages;i++) {
    percentage = (int)(i*100/num_256B_pages);
    if( ((percentage %5) == 0) && (prev_percentage != percentage))
-       printf("Checking image code: %d %% of %d pages      \r", percentage, num_256B_pages);
+       printf(" Checking image code: %d %% of %d pages      \r", percentage, num_256B_pages);
    fr_Read(devsel, raddress_secondary, 256, rdata);
    raddress_secondary = raddress_secondary + 256;
    prev_percentage = percentage;
@@ -519,10 +520,10 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
  }
  et = evt = time(NULL); 
  evt = evt - svt;
- printf("Checking Image code: completed in   %d seconds           \n", (int)evt);
+ printf(" Checking Image code: \033[1mcompleted\033[0m in   %d seconds           \n", (int)evt);
  
  et = et - st;
- printf("Total Time to write the new Image:  %d seconds           \n", (int)et);
+ printf("\033[1m Total Time to write the new Image:  %d seconds.\033[0m           \n", (int)et);
  printf("\n");
 
  close(BIN);
@@ -535,7 +536,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
 
 
 //int update_image_zynqmp(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr)
-int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
+int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr, int verbose_flag)
 {
   int priv1,priv2;
   int dat, dif;
@@ -575,10 +576,12 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
   } else {
     fsize = tempstat.st_size;
   }
-  printf("Flashing file of size %ld bytes\n",fsize);
+  if (verbose_flag)
+     printf(" Flashing file of size %ld bytes\n",fsize);
   num_64KB_sectors = fsize/65536 + 1;
   num_256B_pages = fsize/256 + 1;
-  printf("Performing %d 256B Programs/Reads\n",num_256B_pages);
+  if (verbose_flag)
+     printf("Performing %d 256B Programs/Reads\n",num_256B_pages);
 
  // Set stdout to autoflush
  setvbuf(stdout, NULL, _IONBF, 0);
@@ -613,10 +616,10 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
    if (i > 1){
      percentage = (int)(i*100/num_256B_pages);
      if( ((percentage %5) == 0) && (prev_percentage != percentage)) {
-       printf("Writing image code : %d %% of %d pages                        \r", percentage , num_256B_pages);}
+       printf("\033[1m Writing\033[0m image code : \033[1m%d\033[0m %% of %d pages                                                \r", percentage , num_256B_pages);}
      prev_percentage = percentage;
    } else {
-     printf("Waiting for card acknowledgement (can take up to a minute!) \r");
+     printf("Waiting for card acknowledgement (\033[1mPlease be patient. It can take up to a minute!)\033[0m \r");
    }
    ack_status = axi_read_zynq(FA_QSPI, ack_addr, FA_EXP_OFF, FA_EXP_0123, "");
 
@@ -639,19 +642,19 @@ int update_image_zynqmp(char binfile[1024], char cfgbdf[1024], int start_addr)
    }
  }
 
- printf("Writing image code Completed (%d pages written) \n", num_256B_pages);
+ printf(" Writing image code \033[1mcompleted\033[0m                        \n");
  axi_write_zynq(FA_QSPI, ack_addr , FA_EXP_OFF, FA_EXP_0123, 0x000000FF, "");
  //printf("Number of writes in decimal:  %d\n", write_count);
  write_count = 0;
  
  config_write(0x638, 0x00000000, 4, "");
- printf("Done copying image from DDR to flash \n");
+ printf("Copying image from DDR to flash \033[1mcompleted\033[0m\n");
 
 
  evt = time(NULL);
  et = evt - set;
 
- printf("Total Time:   %d seconds\n\n", (int)et);
+ printf("\033[1m Total Time:   %d seconds\033[0m\n\n", (int)et);
 
  close(BIN);
  return 0;

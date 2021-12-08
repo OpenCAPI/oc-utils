@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 //==============================================
 // This sequence is using the reload writing to the HWICAP (and not the iprog_icap)
   printf("\n----------------------------------\n");
-  printf("Reloading card in slot %s\n", cfgbdf);
+  printf(" Reloading code from Flash for the card in slot %s\n", cfgbdf);
 
   rdata = 0;
   while ((u32)rdata != (u32)SR_ICAPEn_EOS)  {

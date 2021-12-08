@@ -20,21 +20,30 @@
 package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
 
+bold=\\033[1m
+green=\\033[32m
+blue=\\033[34m
+red=\\033[31m
+normal=\\033[0m
+
+
 program=`basename "$0"`
+mylock=0  # var used to remove lock dir only if we created it
 
 # Print usage message helper function
 function usage() {
   echo "Usage:  sudo ${program} [OPTIONS]"
   echo "    [-C <card>] card to reload."
   echo "      Example: if you want to reload card"
-  echo -e "        \033[33m IBM,oc-snap.0004:00:00.1.0 \033[0m"
+  echo -e "        ${green} IBM,oc-snap.0004:00:00.1.0 ${normal}"
   echo "      Command line should be:"
-  echo -e "        \033[33m sudo ./oc-reload.sh -C IBM,oc-snap.0004:00:00.1.0 \033[0m"
+  echo -e "        ${green} sudo ./oc-reload.sh -C IBM,oc-snap.0004:00:00.1.0 ${normal}"
   echo "      Or:"
-  echo -e "        \033[33m sudo ./oc-reload.sh -C 0004:00:00.0 \033[0m"
+  echo -e "        ${green} sudo ./oc-reload.sh -C 0004:00:00.0 ${normal}"
   echo "      Or:"
-  echo -e "        \033[33m sudo ./oc-reload.sh -C 4 \033[0m"
+  echo -e "        ${green} sudo ./oc-reload.sh -C 4 ${normal}"
   echo "    [-V] Print program version (${version})"
+  echo "    [-L] Force No Lock"
   echo "    [-h] Print this help message."
   echo
   echo "Utility to reload FPGA image from the FPGA Flash."
@@ -49,7 +58,7 @@ function select_cards() {
 
     # get number of cards in system
     n=`ls /dev/ocxl 2>/dev/null | wc -l`
-    printf "$n OpenCAPI cards found.\n"
+    printf "${bold}  $n OpenCAPI cards found.${normal}\n"
 
     # Find all OC cards in the system
     allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
@@ -75,7 +84,7 @@ function select_cards() {
         if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
           parse_info=($line)
           board_vendor[$i]=${parse_info[1]}
-          printf "%-8s %-30s %-20s \n" "Card $card_slot_hex: ${allcards_array[$i]} - ${board_vendor[$i]}"
+	  printf "${bold} Card %s:${normal} %s - %s \n" "$card_slot_hex" "${allcards_array[$i]}" "${board_vendor[$i]}"
         fi
       done < "$package_root/oc-devices"
       i=$[$i+1]
@@ -85,7 +94,7 @@ function select_cards() {
     # prompt card until input is not in list of available slots
     while ! [[ "$c" =~ ^($slot_enum)$ ]]
     do
-        echo -e "Which card number do you want to reload FPGA code from Flash and reset? [$slot_enum]: \c" | sed 's/|/-/g'
+        echo -e "${green}  From which card number do you want to reload the Flash code? [${bold}$slot_enum]: ${normal}\c" | sed 's/|/-/g'
         read -r c
      done
     printf "\n"
@@ -94,9 +103,10 @@ function select_cards() {
 
 # OPTIND Reset done in order to use getopts even if not the first time getopts is called (when sourcing this script by oc-flash-script.sh for example)
 OPTIND=1
+NO_LOCK=0
 
 # Parse any options given on the command line
-while getopts ":C:Vh" opt; do
+while getopts ":C:VhL" opt; do
   case ${opt} in
       C)
       card=$OPTARG
@@ -108,6 +118,9 @@ while getopts ":C:Vh" opt; do
       h)
       usage;
       exit 0
+      ;;
+      L)
+      NO_LOCK=1
       ;;
       \?)
       printf "${bold}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
@@ -142,26 +155,78 @@ else
         card=$(printf '%.4x:00:00.0' "0x${c}")
 fi
 
+        #echo "card selected is : $card"
+        
+
+if [ $NO_LOCK -eq 0 ]; then
+	echo -e "${blue}Checking if card $card is locked${normal}"
+	LockDir="$LockDirPrefix$card"  # taken from oc-utils-common.sh
+	# First step: create the dirname of $LockDir (typically /var/ocxl)
+	# in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
+	mkdir -p `dirname $LockDir`
+	
+	# Second step: trying to create $LockDir locking directory (typically into /var/ocxl)
+	# and testing if the creation succeeded ("mkdir" fails if dir already exists)
+	if mkdir $LockDir 2>/dev/null; then
+		echo -e "${blue}$LockDir created during oc-reload${normal}"
+		# The following line prepares a cleaning of the newly created dir when script will output
+		trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reload${normal}"' EXIT # This prepares a cleaning of the newly created dir
+                                                                                # when script will output
+	else
+		echo
+		printf "${bold}${red}ERROR:${normal} $LockDir is already existing\n"
+		printf " => Card has been locked already!\n"
+		
+		DateLastBoot=`who -b | awk '{print $3 " " $4}'`
+		EpochLastBoot=`date -d "$DateLastBoot" +%s`
+		
+		EpochLockDir=`stat --format=%Y $LockDir`
+		DateLockDir=`date --date @$EpochLockDir`
+		
+		if [ $EpochLockDir -lt $EpochLastBoot ]; then
+			echo
+			echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+			echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+			echo "$LockDir modified BEFORE last boot"
+			echo;echo "======================================================="echo "$LockDir modified BEFORE last boot"
+			echo "LOCK is not supposed to still be here"
+			echo "  ==> Deleting and recreating $LockDir"
+			rmdir $LockDir
+			mkdir $LockDir
+			echo -e "${blue}$LockDir created during oc-reload${normal}"
+			# The following line prepares a cleaning of the newly created dir when script will output
+			trap 'rm -rf "$LockDir";echo -e "${blue}$LockDir removed at the end of oc-reload${normal}"' EXIT
+		else
+			echo "$LockDir modified AFTER last boot"
+			printf "${bold}${red}ERROR:${normal} Card has been recently locked\n"
+			echo "Exiting..."
+			exit 10
+		fi
+	fi
+
+fi
+
+
+
 subsys=$(cat /sys/bus/pci/devices/${card}/subsystem_device)
 # adding specific code for 250SOC card (subsystem_id = 0x066A, former id was 0x060d for old cards)
-
-#if [ $subsys == "0x066a" ]; then
 if [[ $subsys = @("0x066a"|"0x060d") ]]; then 
-  printf "Warning - known issue on 250SOC reload - you may need to reboot the server\n"
-  reload_card $card factory "Image Reloading for OpenCAPI Adapter $card (250SOC)"
+  printf " ${red}Warning:${normal}There is still a known issue on the 250SOC reload:\n"
+  printf "         You may need to reboot the server to reload the code just programmed in Flash.\n\n"
+  reload_card $card factory " Reloading code from Flash for the OpenCAPI card in slot $card"
 
 #otherwise use the src/img_reload.c compiled code
 else
   start=`date +%s`
-  $package_root/oc-reload --devicebdf $card  --startaddr 0x0 "Image Reloading for OpenCAPI Adapter $card (new images)"
+  $package_root/oc-reload --devicebdf $card  --startaddr 0x0 " Reloading code from Flash for the OpenCAPI card in slot $card (new images)"
   end=`date +%s`
 
   runtime=$((end-start))
   # in oc-reload we wait for 1 sec to see if EOS is set to 1, if not then a timeout occurs
   if [ $runtime -ge 1 ]; then
      #echo "reload with the reload_card function (old image detected)"
-     reload_card $card factory "Image Reloading for OpenCAPI Adapter $card"
+     reload_card $card factory " Reloading code from Flash for the OpenCAPI card in slot $card"
   else
-     reset_card $card factory "Resetting OpenCAPI Adapter $card"
+     reset_card $card factory " Resetting card $card after Image Reloading"
   fi
 fi
