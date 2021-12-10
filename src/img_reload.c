@@ -161,12 +161,12 @@ int main(int argc, char *argv[])
   if(verbose_flag) 
      printf("Waiting for ICAP EOS set \e[1A\n");
 
-
-  while ((rdata != SR_ICAPEn_EOS) && (timeout < 1)) {
-    rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
-    time(&current_time);
-    timeout = (int)difftime(current_time, start_time);
-  }
+// FAB: this while hangs. So bypassing it to get the read_*_regs just after
+//  while ((rdata != SR_ICAPEn_EOS) && (timeout < 1)) {
+//    rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+//    time(&current_time);
+//    timeout = (int)difftime(current_time, start_time);
+//  }
   // timeout can occur for old images, then use the old reload from oc-utils-common.sh
   if(timeout >= 1) {
      //printf("Timeout! EOS cannot be set \n");
