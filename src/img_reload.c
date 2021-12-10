@@ -178,8 +178,8 @@ int main(int argc, char *argv[])
 
 
   if(verbose_flag)  {
-     read_QSPI_regs();
-     read_ICAP_regs();
+//     read_QSPI_regs();
+//     read_ICAP_regs();
      read_FPGA_IDCODE();
   }
 //==============================================
