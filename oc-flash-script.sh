@@ -680,7 +680,7 @@ else
 fi
 
 #------------------------------------------------------------------------------------------------------------------
-# Waiting for the flash operation and the reseting the card
+# Waiting for the flash operation and then reseting the card
 PID=$! # process ID of the most recently executed background pipeline
 wait $PID
 trap - TERM INT
