@@ -16,8 +16,7 @@
 #
 # Usage: sudo oc-flash-script.sh <path-to-bin-file>
 
-tool_version=4.1
-# Changes History
+# Changes History:
 # V2.0 code cleaning
 # V2.1 reduce lines printed to screen (elasped times)
 # V2.2 test if binary image is a capi2 image and correct printf error
@@ -27,33 +26,34 @@ tool_version=4.1
 # V4.00 integrating the Partial reconfiguration
 # V4.1  introducing a per card lock mechanism
 
-# get capi-utils root
+# Exit codes:
+#  echo "Exit codes : 0  : OK"
+#  echo "           : 1  : argument issue"
+#  echo "           : 2  : card or slot issue"
+#  echo "           : 3  : file name doesn't match card name"
+#  echo "           : 4  : dynamic code doesn't match static code"
+#  echo "           : 5  : Utility capi-flash not found
+#  echo "           : 10 : a card was locked by another process"
+
+
+###################################################################################################################
+# get capi-utils root directory & source oc-utils-common.sh
+
 [ -h $0 ] && package_root=`ls -l "$0" |sed -e 's|.*-> ||'` || package_root="$0"
 package_root=$(dirname $package_root)
 source $package_root/oc-utils-common.sh
+
+
+###################################################################################################################
+# Variables
+
+tool_version=4.1
 
 bold=$(tput bold)
 blue=$(tput setaf 4)
 red=$(tput setaf 1)
 green=$(tput setaf 2)
 normal=$(tput sgr0)
-
-printf "\n"
-printf "oc-flash_script version is $tool_version\t - "
-printf "Tool compiled on: "
-ls -l $package_root/oc-flash|cut -d ' ' -f '6-8'
-echo "_________________________________________________________________________${bold} ${green}"
-echo "            ____                   _________    ____  ____               "
-echo "           / __ \____  ___  ____  / ____/   |  / __ \/  _/               "
-echo "          / / / / __ \/ _ \/ __ \/ /   / /| | / /_/ // /                 "
-echo "         / /_/ / /_/ /  __/ / / / /___/ ___ |/ ____// /                  "
-echo "         \____/ .___/\___/_/ /_/\____/_/  |_/_/   /___/                  ${blue}"
-echo "   ___       /_/                           _             __            __"
-echo "  / _ \_______  ___ ________ ___ _  __ _  (_)__  ___ _  / /____  ___  / /"
-echo " / ___/ __/ _ \/ _ '/ __/ _ '/  ' \/  ' \/ / _ \/ _ '/ / __/ _ \/ _ \/ / "
-echo "/_/  /_/  \___/\_, /_/  \_,_/_/_/_/_/_/_/_/_//_/\_, /  \__/\___/\___/_/  "
-echo "              /___/                            /___/                     ${normal}"
-echo "_________________________________________________________________________"
 
 force=0
 automation=0
@@ -67,6 +67,30 @@ flash_type=""
 
 reset_factory=0
 
+
+###################################################################################################################
+# Print startup infos
+
+printf "\n"
+printf "oc-flash_script version is $tool_version\t - "
+printf "Tool compiled on: "
+ls -l $package_root/oc-flash|cut -d ' ' -f '6-8' # date of last tool compilation
+echo "_________________________________________________________________________${bold} ${green}"
+echo "            ____                   _________    ____  ____               "
+echo "           / __ \____  ___  ____  / ____/   |  / __ \/  _/               "
+echo "          / / / / __ \/ _ \/ __ \/ /   / /| | / /_/ // /                 "
+echo "         / /_/ / /_/ /  __/ / / / /___/ ___ |/ ____// /                  "
+echo "         \____/ .___/\___/_/ /_/\____/_/  |_/_/   /___/                  ${blue}"
+echo "   ___       /_/                           _             __            __"
+echo "  / _ \_______  ___ ________ ___ _  __ _  (_)__  ___ _  / /____  ___  / /"
+echo " / ___/ __/ _ \/ _ '/ __/ _ '/  ' \/  ' \/ / _ \/ _ '/ / __/ _ \/ _ \/ / "
+echo "/_/  /_/  \___/\_, /_/  \_,_/_/_/_/_/_/_/_/_//_/\_, /  \__/\___/\___/_/  "
+echo "              /___/                            /___/                     ${normal}"
+echo "_________________________________________________________________________"
+
+
+###################################################################################################################
+# Functions
 
 # Print usage message helper function
 function usage() {
@@ -95,15 +119,10 @@ function usage() {
   echo
 }
 
-#  echo "Exit codes : 0  : OK"
-#  echo "           : 1  : argument issue"
-#  echo "           : 2  : card or slot issue"
-#  echo "           : 3  : file name doesn't match card name"
-#  echo "           : 4  : dynamic code doesn't match static code"
-#  echo "           : 5  : Utility capi-flash not found
-#  echo "           : 10 : a card was locked by another process"
 
+###################################################################################################################
 # Parse any options given on the command line
+
 while getopts ":C:faVhr" opt; do
   case ${opt} in
 # we kept C as option name to avoid changing existing scripts, but "C" now represents the slot number
@@ -143,18 +162,24 @@ while getopts ":C:faVhr" opt; do
   esac
 done
 
+# now working with the next given parameters that should be the image files ($@)
 shift $((OPTIND-1))
-# now do something with $@
+
+
+###################################################################################################################
+# Main
 
 ulimit -c unlimited
 
-# make sure an input argument is provided
+#------------------------------------------------------------------------------------------------------------------
+# make sure an input argument (image file) is provided
 if [ $# -eq 0 ]; then
   printf "${bold}${red}ERROR:${normal} Input argument missing\n"
   usage
   exit 1
 fi
 
+#------------------------------------------------------------------------------------------------------------------
 # make sure the input file exists
 if [[ ! -e $1 ]]; then
   printf "${bold}${red}ERROR:${normal} $1 not found\n"
@@ -162,15 +187,17 @@ if [[ ! -e $1 ]]; then
   exit 1
 fi
 
-# check if OpenCAPI boards exists
+#------------------------------------------------------------------------------------------------------------------
+# check if some OpenCAPI boards exist
 capi_check=`ls /dev/ocxl 2>/dev/null | wc -l`
 if [ $capi_check -eq 0 ]; then
   printf "${bold}${red}ERROR:${normal} No OpenCAPI devices found\n"
   exit 1
 fi
 
-
 printf "\n"
+
+#------------------------------------------------------------------------------------------------------------------
 # get number of cards in system
 n=`ls /dev/ocxl 2>/dev/null | wc -l`
 printf " In this server:  ${bold}$n${normal} OpenCAPI card(s) found."
@@ -182,12 +209,16 @@ for i in `seq 0 $(($n - 1))`; do
   fi
 done
 
+#------------------------------------------------------------------------------------------------------------------
 # print current date on server for comparison
 printf "\n${bold} Current date is ${normal}$(date)\n\n"
 
+#------------------------------------------------------------------------------------------------------------------
 # print table header
 printf " Following logs show last programming files (except if hardware or capi version has changed):\n"
 printf "${bold}%-7s %-35s %-29s %-20s %s${normal}\n" " #" "Card slot and name" "Flashed" "by"
+
+#------------------------------------------------------------------------------------------------------------------
 # Find all OC cards in the system
 allcards=`ls /dev/ocxl 2>/dev/null | awk -F"." '{ print $2 }' | sed s/$/.0/ | sort`
 if [ -z "$allcards" ]; then
@@ -197,18 +228,19 @@ fi
 
 allcards_array=($allcards)
 
-# print card information and flash history
+#------------------------------------------------------------------------------------------------------------------
+# Get found cards information and flash history and print it
 i=0;
-    slot_enum=""
-    delimiter="|"
+slot_enum=""
+delimiter="|"
 
-# Collecting informations from oc-devices file    
-#list of ".1" slots returned by lspci containing "062b"
+# list of ".1" slots returned by lspci containing "062b"
+# Getting generic informations (vendor, flash, etc) from oc-devices file    
 while read d ; do
-        #extract the subsystem_device id to know the board id
+  #extract the subsystem_device id in order to know the board id
 	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
 	# translate the slot number string to a hexa number
-  	card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
+  card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
 	# build a slot_enum of all card numbers and use it in the test menu to test user input
 	if [ -z "$slot_enum" ]; then
 		slot_enum=$card_slot_hex
@@ -217,8 +249,8 @@ while read d ; do
 	fi
       
 	f=$(cat /var/ocxl/card$i)
-      	while IFS='' read -r line || [[ -n $line ]]; do
-	    	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
+  while IFS='' read -r line || [[ -n $line ]]; do
+	 	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
 		  	parse_info=($line)
 		  	board_vendor[$i]=${parse_info[1]}
 		  	fpga_manuf[$i]=${parse_info[2]}
@@ -228,30 +260,33 @@ while read d ; do
 		  	flash_secondary[$i]=${parse_info[6]}
 		  	component_list=(${line:6:23})
 		  	bin_list=(${f:51})
-                        #display Card number : slot - Card name - date -name of last programming registered in file
+        #display Card number : slot - Card name - date -name of last programming registered in file
 		  	printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
-                        #display the 2 names of bin files
-			if [ ! -z ${bin_list[1]} ]; then
-		  	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
-			else
-		  	  printf "\t%s \n" "${bin_list[0]}"
-			fi
-		  	echo ""
-	    	fi
-      	done < "$package_root/oc-devices"
-      	i=$[$i+1]
+        #display the 2 names of bin files
+      	if [ ! -z ${bin_list[1]} ]; then
+	    	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
+			  else
+	  	  printf "\t%s \n" "${bin_list[0]}"
+			  fi
+	  	echo ""
+	  fi
+  done < "$package_root/oc-devices"
+
+  i=$[$i+1]
 done < <( lspci -d "1014":"062b" -s .1 )
 
 printf "\n"
+
+#------------------------------------------------------------------------------------------------------------------
 # card is set via parameter since it is positive (otherwise default to -1)
 # $card parameter when provided needs to be the slot number
 # we translate it to card position in the old numbering way (eg: 0 to n-1)
 if [ ! -z $paramcard ]; then
 	# Assign C to 4 digits hexa
-#	card4=`printf "%04x" $card`
+  #	card4=`printf "%04x" $card`
 	card4=$(printf '%04x' "0x${card}")
 	echo "Slot is: $card4"
-		echo $allcards
+	echo $allcards
 	# search for card4 occurence and get line number in list of slots
 	ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
 	
@@ -267,41 +302,42 @@ if [ ! -z $paramcard ]; then
 		#echo Card is: card$c
 	fi
 else
-# prompt card to flash to
-#  while true; do
-#    read -p "  Which card do you want to flash? [0-$(($n - 1))] " c
-#    if ! [[ $c =~ ^[0-9]+$ ]]; then
-#      printf "${bold}${red}ERROR:${normal} Invalid input\n"
-#    else
-#      c=$((10#$c))
-#      if (( "$c" >= "$n" )); then
-#        printf "${bold}${red}ERROR:${normal} Wrong card number\n"
-#        exit 1
-#      else
-#        break
-#      fi
-#    fio
-#  done
+  # prompt card to flash to
+  #  while true; do
+  #    read -p "  Which card do you want to flash? [0-$(($n - 1))] " c
+  #    if ! [[ $c =~ ^[0-9]+$ ]]; then
+  #      printf "${bold}${red}ERROR:${normal} Invalid input\n"
+  #    else
+  #      c=$((10#$c))
+  #      if (( "$c" >= "$n" )); then
+  #        printf "${bold}${red}ERROR:${normal} Wrong card number\n"
+  #        exit 1
+  #      else
+  #        break
+  #      fi
+  #    fio
+  #  done
 
-    # prompt card until input is in list of available slots
-    while ! [[ "$c" =~ ^($slot_enum)$ ]]
-    do
-        echo -e "  ${green}Which card number do you want to flash? [${bold}$slot_enum${normal}]: \c" | sed 's/|/-/g'
-        read -r c
-     done
-    printf "\n"
+  # prompt card until input is in list of available slots
+  while ! [[ "$c" =~ ^($slot_enum)$ ]]
+  do
+    echo -e "  ${green}Which card number do you want to flash? [${bold}$slot_enum${normal}]: \c" | sed 's/|/-/g'
+    read -r c
+  done
+  printf "\n"
 
-    card4=$(printf '%04x' "0x${c}")
-    #echo "Slot is: $card4"
-    # search for card4 occurence and get line number in list of slots
-    ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
-    c=$(($ln - 1))
+  card4=$(printf '%04x' "0x${c}")
+  #echo "Slot is: $card4"
+  # search for card4 occurence and get line number in list of slots
+  ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+  c=$(($ln - 1))
 
 fi
 
 #printf "\n"
 
-# check file type
+#------------------------------------------------------------------------------------------------------------------
+# check file type (looking at file extension and card manufacturer)
 PR_mode=0
 FILE_EXT=${1##*.}
 if [[ ${fpga_manuf[$c]} == "Altera" ]]; then
@@ -319,7 +355,9 @@ else
   exit 1
 fi
 
-# get flash address and block size
+#------------------------------------------------------------------------------------------------------------------
+# Get flash address and block size
+# Decide if Partial Reconfiguration or not (looking at file name)
 if [ -z "$flash_address" ]; then
   flash_address=${flash_partition[$c]}
   if [[ $1 =~ "_partial" ]]
@@ -349,94 +387,111 @@ if [ $PR_mode == 1 ]; then
   flash_type="PR_SPIx8" #if PR mode then overide the flash_type setting to consider it as a 
 fi
 
-# Deal with the second argument
+#------------------------------------------------------------------------------------------------------------------
+# Deal with the second argument (the secondary bin file)
 if [ $flash_type == "SPIx8" ]; then
-    if [ $# -eq 1 ]; then
-      printf "${bold}${red}ERROR:${normal} Input argument missing for SPIx8 card (or bad card selected)\n"
-      printf "       The device you have selected requires both primary and secondary bin files\n"
-      bdf=`echo ${allcards_array[$c]}`
-      #echo $bdf
-      usage
-      exit 1
-    fi
-    #Check the second file
-    if [[ ! -e $2 ]]; then
-      printf "${bold}${red}ERROR:${normal} $2 not found\n"
-      usage
-      exit 1
-    fi
-    #Assign secondary address
-    flash_address2=${flash_secondary[$c]}
-    if [ -z "$flash_address2" ]; then
-        printf "${bold}${red}ERROR:${normal} The second address must be assigned in file oc-device\n"
-        exit 1
-    fi
+  if [ $# -eq 1 ]; then
+    printf "${bold}${red}ERROR:${normal} Input argument missing for SPIx8 card (or bad card selected)\n"
+    printf "       The device you have selected requires both primary and secondary bin files\n"
+    bdf=`echo ${allcards_array[$c]}`
+    #echo $bdf
+    usage
+    exit 1
+  fi
+
+  #Check the second file existence
+  if [[ ! -e $2 ]]; then
+    printf "${bold}${red}ERROR:${normal} $2 not found\n"
+    usage
+    exit 1
+  fi
+
+  #Assign secondary address
+  flash_address2=${flash_secondary[$c]}
+  if [ -z "$flash_address2" ]; then
+    printf "${bold}${red}ERROR:${normal} The second address must be assigned in file oc-device\n"
+    exit 1
+  fi
 fi
 
-
+#------------------------------------------------------------------------------------------------------------------
 # card is set via parameter since it is positive
 #if (($force != 1)); then
   # prompt to confirm
-  while true; do
-    printf " ${bold}INFO:${normal} It is ${bold}highly recommended ${normal}to CLOSE all JTAG tools (SDK, hardware_manager) before programming\n";
-    printf "      This could create a conflict, lose access to the card and force you to reboot the server!\n\n";
+while true; do
+  printf " ${bold}INFO:${normal} It is ${bold}highly recommended ${normal}to CLOSE all JTAG tools (SDK, hardware_manager) before programming\n";
+  printf "      This could create a conflict, lose access to the card and force you to reboot the server!\n\n";
 
-    #extract the card name of the input argument
-    #file_to_program=`echo $1 |awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-    file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-	if [ $flash_type == "SPIx8" ]; then
-		file_to_program2=`echo $2 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-		if [[ ${file_to_program} !=  ${file_to_program2} ]]; then
-			printf "\n>>>=================================================================================<<<\n"
-			printf ">>> ${bold}${red}ERROR:${normal} Inconsistency between primary ${bold}${file_to_program}${normal} and secondary ${bold}${file_to_program2}${normal} selected boards!!\n"
-			printf ">>>=================================================================================<<<\n"
-			exit 3    # we exit whenever the primary and secondary file are board inconsistent
-		fi
-	fi
-    #printf "The binary file you want to use is build for ${file_to_program}\n" 
-    #extract the name of the slot 
-    card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
-    echo "card_to_program=${card_to_program}"
-    #printf " You have chosen to reprogram ${card_to_program}\n"
+  #------------------------------------------------------------------------------------------------------------------
+  # We extract the card name (such as "AD9V3") from the provided bin file names $1 and $2 (primary and secondary) and check they are consistent
+  file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+ 	if [ $flash_type == "SPIx8" ]; then
+  	file_to_program2=`echo $2 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+	  if [[ ${file_to_program} !=  ${file_to_program2} ]]; then
+		  printf "\n>>>=================================================================================<<<\n"
+	  	printf ">>> ${bold}${red}ERROR:${normal} Inconsistency between primary ${bold}${file_to_program}${normal} and secondary ${bold}${file_to_program2}${normal} selected boards!!\n"
+		  printf ">>>=================================================================================<<<\n"
+		  exit 3    # we exit whenever the primary and secondary file are board inconsistent
+	  fi
+  fi
 
-    if [ $PR_mode == 1 ]; then
-        printf " You have asked to ${bold}dynamically${normal} program the ${bold}${card_to_program}${normal} board in slot ${bold}$card4${normal} with :\n     ${bold}$1${normal}\n" 
-    else
-        printf " You have asked to ${bold}flash${normal} the ${bold}${card_to_program}${normal} board in slot ${bold}$card4${normal} with:\n     ${bold}$1${normal}\n" 
-    fi
-    if [ $flash_type == "SPIx8" ]; then
-        printf " and ${bold}$2${normal}\n" 
-    fi
+  #------------------------------------------------------------------------------------------------------------------
+  # We display the card name we want to program (such as "AD9V3")
+  card_to_program=`echo  ${board_vendor[$c]} |awk -F 'OC-' '{ print $2 }'|awk -F '('  '{ print $1 }'`
+  echo "card_to_program=${card_to_program}"
 
-	if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
-		printf "\n>>>=================================================================================<<<\n"
-		printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
-		printf ">>> You may crash and lose your card if you force the programming.\n" 
-		printf ">>> You can force at your own risks using the '-f' option.\n" 
-		printf ">>>=================================================================================<<<\n"
+  #------------------------------------------------------------------------------------------------------------------
+  # We display a summary about what we're going to do: Partial Reconfig or not, SPIx8 (primary and secondary files) or not, etc
+  if [ $PR_mode == 1 ]; then
+    printf " You have asked to ${bold}dynamically${normal} program the ${bold}${card_to_program}${normal} board in slot ${bold}$card4${normal} with :\n     ${bold}$1${normal}\n" 
+  else
+    printf " You have asked to ${bold}flash${normal} the ${bold}${card_to_program}${normal} board in slot ${bold}$card4${normal} with:\n     ${bold}$1${normal}\n" 
+  fi
+  if [ $flash_type == "SPIx8" ]; then
+    printf " and ${bold}$2${normal}\n" 
+  fi
+
+  #------------------------------------------------------------------------------------------------------------------
+  # Testing if bin images have been made for card type (AD9V3 bin files for AD9V3 card for example)
+  
+  # Bin images have NOT been made for card type (for example AD9H7 bin images while card type is AD9V3)-> NOT Good !
+  if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
+	  printf "\n>>>=================================================================================<<<\n"
+	  printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
+	  printf ">>> You may crash and lose your card if you force the programming.\n" 
+	  printf ">>> You can force at your own risks using the '-f' option.\n" 
+	  printf ">>>=================================================================================<<<\n"
 		
-		if (($force != 1)); then
-			if (($automation == 1)); then
-				exit 3
-			else
-				read -p "Do you really want to continue? [y/n] " yn
-				case $yn in
-					[Yy]* ) break;;
-					[Nn]* ) exit;;
-					* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-				esac
-			fi
-		else
-			printf "${bold}${red}WARNING: ${normal}Force mode was required, although file is not matching board !!\n"
-			break
-		fi
-	else
-		break
-	fi
+    # Not using the force mode
+	  if (($force != 1)); then
+      # We're in automation mode, so exiting
+	  	if (($automation == 1)); then
+	  		exit 3
+      # We're in interactive mode, so asking the user  
+		  else
+			  read -p "Do you really want to continue? [y/n] " yn
+			  case $yn in
+				  [Yy]* ) break;;
+				  [Nn]* ) exit;;
+				  * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+			  esac
+		  fi
+    
+    # Using the force mode, so warning and continue
+	  else
+		  printf "${bold}${red}WARNING: ${normal}Force mode was required, although file is not matching board !!\n"
+		  break
+	  fi
 
-  done
+  # Bin images have been made for card type (for example AD9V3 bin images while card type is AD9V3)-> let's continue
+  else
+  	break
+  fi
 
+done
 
+#------------------------------------------------------------------------------------------------------------------
+# We display a summary telling we're going to flash
 printf "Continue to flash ${bold}$1${normal} ";
 if [ $flash_type == "SPIx8" ]; then
 	printf "and ${bold}$2${normal} "
@@ -444,47 +499,64 @@ fi
 printf "to ${bold}card position $c${normal}(slot$card4)\n"
 
 printf "\n"
-#=======================
-#add test for PR to check that PR number of partial bin file corresponds to the static image
+
+#------------------------------------------------------------------------------------------------------------------
+# In case of Partial Reconfig (PR), check that PR number of partial binary file corresponds to the PR number of loaded static image
 PR_risk=0
 
 if [ $PR_mode == 1 ]; then
-    #extract the card name of the input argument
-    PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-    if [ -z "$PRC_dynamic" ]; then
-      printf ">>> ${bold}WARNING :${normal} NO dynamic PR Code in filename! <<<\n" 
-      printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
-      PR_risk=1
-    fi
 
-    #extract PRC_static from the name of the bin file logged in /var/ocxl/cardxx
-    PRC_static=`cat /var/ocxl/card$c | awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-    #printf "From log flash file : $c ${p[$c]:0:6} $PRC_static\n"
-    # TODO get the actual static code from the card itself
-    # PRC_static=`../oc-accel/software/tools/snap_peek 0x60 -C5`
-    if [ -z "$PRC_static" ]; then
-      printf ">>> ${bold}WARNING :${normal} NO static PR Code found in filename logged in Flash log files! <<<\n" 
-      printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+  # Extract the PR Number from the binary file name
+  PRC_dynamic=`echo $1  |awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+
+  # We did not find any PR number just above, so flashing is at risk
+  if [ -z "$PRC_dynamic" ]; then
+    printf ">>> ${bold}WARNING :${normal} NO dynamic PR Code in filename! <<<\n" 
+    printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+    PR_risk=1
+  fi
+
+  # Extract the PR number of loaded static image from the name of the bin file logged in /var/ocxl/cardxx
+  # TODO get the actual static code from the card itself
+  # PRC_static=`../oc-accel/software/tools/snap_peek 0x60 -C5`
+  PRC_static=`cat /var/ocxl/card$c | awk -F 'oc_20' '{ print $2 }' | awk -F '_PR' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+
+  # We did not find any PR number just above, so flashing is at risk
+  if [ -z "$PRC_static" ]; then
+    printf ">>> ${bold}WARNING :${normal} NO static PR Code found in filename logged in Flash log files! <<<\n" 
+    printf "Impossible to know if static and dynamic code match. You can continue at your own risk !\n" 
+    PR_risk=1
+
+  # Comparing PR numbers from the bin file name and from the /var/ocxl/cardxx log file (dynamic vs static)
+  else
+
+    # Dynamic PR number does NOT correspond to static PR Number, so flashing is at risk
+    if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
+      printf "\n>>>===================================================================================<<<\n"
+      printf ">>> ${bold}${red}ERROR :${normal} Static code ${bold}${PRC_static}${normal} (flash log file) doesn't match with dynamic code ${bold}${PRC_dynamic}${normal} (your filename)!\n"
+      printf ">>> You may crash and lose your card if you force the programming.\n" 
+      printf ">>> You can force at your own risks using the '-f' option.\n" 
+      printf ">>>===================================================================================<<<\n"
       PR_risk=1
+
+    # Dynamic PR number = static PR number, so this is OK
     else
-       if [ ${PRC_dynamic} !=  ${PRC_static} ]; then
-         printf "\n>>>===================================================================================<<<\n"
-         printf ">>> ${bold}${red}ERROR :${normal} Static code ${bold}${PRC_static}${normal} (flash log file) doesn't match with dynamic code ${bold}${PRC_dynamic}${normal} (your filename)!\n"
-         printf ">>> You may crash and lose your card if you force the programming.\n" 
-         printf ">>> You can force at your own risks using the '-f' option.\n" 
-         printf ">>>===================================================================================<<<\n"
-         PR_risk=1
-       else
-         printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
-         PR_risk=0
-       fi   # end of "${PRC_dynamic} !=  ${PRC_static}" test
-    fi   # end of "-z "$PRC_static" test
+      printf "The PR Codes match ($PRC_static). Programming continues safely.\n" 
+      PR_risk=0
+
+    fi   # end of "${PRC_dynamic} !=  ${PRC_static}" test
+  fi   # end of "-z "$PRC_static" test
 fi   # end of "PRmode == 1" test
-    
+
+# Not using the force mode
 if (($force != 1)); then
+
+  # Partial reconfig is at risk
 	if [ $PR_risk == 1 ]; then
+    # We're in automation mode, so exiting
 		if (($automation == 1)); then
 			exit 4
+    # We're in interactive mode, so asking the user
 		else
 			read -p "Do you want to continue? [y/n] " yn
 			case $yn in
@@ -493,7 +565,10 @@ if (($force != 1)); then
 				* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
 			esac
 		fi
+
+  # Partial reconfig is OK
 	else 
+    # We're in interactive mode, so just asking the user before continuing
 		if (($automation != 1)); then
 			read -p "Do you want to continue? [y/n] " yn
 			case $yn in
@@ -503,96 +578,110 @@ if (($force != 1)); then
 			esac
 		fi
 	fi
+
+ # Using the force mode
  else 
+  # Partial reconfig is at risk, but force mode so warning and continue
 	if  [ $PR_risk == 1 ]; then
 		 printf "${bold}${red}WARNING: ${normal}Force mode was required, we continue although there were errors !!"
 	fi
 fi
 
-#=======================
-
+#------------------------------------------------------------------------------------------------------------------
 # Check if lowlevel flash utility is existing and executable
 if [ ! -x $package_root/oc-flash ]; then
     	printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
     	exit 5
 fi
 
+#------------------------------------------------------------------------------------------------------------------
 # Reset to card/flash registers to known state (factory) 
 if [ "$reset_factory" -eq 1 ]; then
       	oc-reset $c factory "Preparing card for flashing"
 fi
 
+#------------------------------------------------------------------------------------------------------------------
+# Entering card locking mechanism
 trap 'kill -TERM $PID; perst_factory $c' TERM INT
 # flash card with corresponding binary
 bdf=`echo ${allcards_array[$c]}`
 echo "${blue}Entering card locking mechanism ...${normal}"
 
-
 #LockDir=/var/ocxl/oc-flash-script.lock
-LockDir="$LockDirPrefix$bdf"  # taken from oc-utils-common.sh
+LockDir="$LockDirPrefix$bdf"  # $LockDirPrefix taken from oc-utils-common.sh (typically /var/ocxl/locked_card_)
 
-# First step: create the dirname of $LockDir (typically /var/ocxl)
-# in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
+# First step: create the dirname of $LockDir (typically /var/ocxl) in case it is not yet existing ("mkdir -p" always successful even if dir already exists)
 mkdir -p `dirname $LockDir`
 
 # Second step: trying to create $LockDir locking directory (typically into /var/ocxl)
-# and testing if the creation succeeded ("mkdir" fails if dir already exists)
+# The $LockDir creation succeeded => implement a trap to be sure the $LockDir will be deleted when script exits
 if mkdir $LockDir 2>/dev/null; then
 	echo "${blue}$LockDir created${normal}"
-	# The following line prepares a cleaning of the newly created dir when script will output
+	# The following line prepares a cleaning of the newly created dir when script will exit
 	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT	
-					      
+
+ # The $LockDir creation failed because a LockDir already exists ("mkdir" fails if dir already exists)
 else
 	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Card has been locked already!\n"
 
+  # Comparing lock creation date with last boot date
   DateLastBoot=`who -b | awk '{print $3 " " $4}'`
   EpochLastBoot=`date -d "$DateLastBoot" +%s`
 
   EpochLockDir=`stat --format=%Y $LockDir`
   DateLockDir=`date --date @$EpochLockDir`
 
+  # Lock creation date is earlier than last boot date, so this lock should not be here anymore
+  # Deleting the Lock dir and creating a new one
   if [ $EpochLockDir -lt $EpochLastBoot ]; then
-	echo
-	echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
-	echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
-	echo "$LockDir modified BEFORE last boot"
-	echo;echo "======================================================="
-	echo "LOCK is not supposed to still be here"
-	echo "  ==> Deleting and recreating $LockDir"
-	rmdir $LockDir
-	mkdir $LockDir
-	echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
-	# The following line prepares a cleaning of the newly created dir when script will output
-	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
+	  echo
+	  echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+	  echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+	  echo "$LockDir modified BEFORE last boot"
+	  echo;echo "======================================================="
+	  echo "LOCK is not supposed to still be here"
+	  echo "  ==> Deleting and recreating $LockDir"
+	  rmdir $LockDir
+	  mkdir $LockDir
+	  echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
+	  # The following line prepares a cleaning of the newly created dir when script will output
+	  trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
+
+  # Lock creation date is later than last boot date, so card lock is accurate => exiting now
   else
-	echo "$LockDir modified AFTER last boot"
-	printf "${bold}${red}ERROR:${normal}  Card has been recently locked!\n"
-	echo "Exiting..."
-	exit 10
+	  echo "$LockDir modified AFTER last boot"
+	  printf "${bold}${red}ERROR:${normal}  Card has been recently locked!\n"
+	  echo "Exiting..."
+	  exit 10
   fi
 
 fi
 
+#------------------------------------------------------------------------------------------------------------------
+# Flashing !
 
-
+# SPIx8 needs two file inputs (primary/secondary)
 if [ $flash_type == "SPIx8" ]; then
-	# SPIx8 needs two file inputs (primary/secondary)
-	#  $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
+	# $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
 	# until multiboot is enabled, force writing to 0x0
 	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
+
+# Not SPIx8, so only one file input (primary)
 else
 	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
 
-# update flash history file
+#------------------------------------------------------------------------------------------------------------------
+# Updating /var/ocxl/cardxx flash history file
 if [ $flash_type == "SPIx8" ]; then
-  	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
+	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
 else
-  	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
+	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
 fi
 
-
-PID=$!
+#------------------------------------------------------------------------------------------------------------------
+# Waiting for the flash operation and the reseting the card
+PID=$! # process ID of the most recently executed background pipeline
 wait $PID
 trap - TERM INT
 wait $PID
