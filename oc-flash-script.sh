@@ -105,7 +105,7 @@ function usage() {
   echo "         warning: use with care e.g. for automation."
   echo "    [-a] automated mode, prevents answering questions."
   echo "         warning: exits if errors detected." 
- # echo "    [-r] Reset adapter to factory before writing to flash."
+  # echo "    [-r] Reset adapter to factory before writing to flash."
   echo "    [-V] Print program version (${version})"
   echo "    [-h] Print this help message."
   echo "    <path-to-bin-file>"
@@ -129,36 +129,36 @@ while getopts ":C:faVhr" opt; do
 # when provided it will be converted temporarilly to a card relative position to maintain
 # compatibility
 # The ultimate goal is to switch to slot number everywhere in this script
-      C)
+    C)
       card=$OPTARG
       paramcard=1
-      ;;
-      f)
+    ;;
+    f)
       force=1
-      ;;
-      a)
+    ;;
+    a)
       automation=1
-      ;;      
-      r)
+    ;;      
+    r)
       printf "${bold}Warning:${normal} Factory/user reset option is unavailable in OC, ignoring -r option\n" >&2
       reset_factory=0
-      ;;
-      V)
+    ;;
+    V)
       echo "${version}" >&2
       exit 0
-      ;;
-      h)
+    ;;
+    h)
       usage;
       exit 0
-      ;;
-      \?)
+    ;;
+    \?)
       printf "${bold}${red}ERROR:${normal} Invalid option: -${OPTARG}\n" >&2
       exit 1
-      ;;
-      :)
+    ;;
+    :)
       printf "${bold}${red}ERROR:${normal} Option -$OPTARG requires an argument.\n" >&2
       exit 1
-      ;;
+    ;;
   esac
 done
 
@@ -238,38 +238,38 @@ delimiter="|"
 # Getting generic informations (vendor, flash, etc) from oc-devices file    
 while read d ; do
   #extract the subsystem_device id in order to know the board id
-	p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
-	# translate the slot number string to a hexa number
+  p[$i]=$(cat /sys/bus/pci/devices/${allcards_array[$i]}/subsystem_device)
+  # translate the slot number string to a hexa number
   card_slot_hex=$(printf '%x' "0x${allcards_array[$i]::-8}")
-	# build a slot_enum of all card numbers and use it in the test menu to test user input
-	if [ -z "$slot_enum" ]; then
-		slot_enum=$card_slot_hex
-	else
-		slot_enum=$slot_enum$delimiter$card_slot_hex
-	fi
+  # build a slot_enum of all card numbers and use it in the test menu to test user input
+  if [ -z "$slot_enum" ]; then
+    slot_enum=$card_slot_hex
+  else
+    slot_enum=$slot_enum$delimiter$card_slot_hex
+  fi
       
-	f=$(cat /var/ocxl/card$i)
+  f=$(cat /var/ocxl/card$i)
   while IFS='' read -r line || [[ -n $line ]]; do
-	 	if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
-		  	parse_info=($line)
-		  	board_vendor[$i]=${parse_info[1]}
-		  	fpga_manuf[$i]=${parse_info[2]}
-		  	flash_partition[$i]=${parse_info[3]}
-		  	flash_block[$i]=${parse_info[4]}
-		  	flash_interface[$i]=${parse_info[5]}
-		  	flash_secondary[$i]=${parse_info[6]}
-		  	component_list=(${line:6:23})
-		  	bin_list=(${f:51})
-        #display Card number : slot - Card name - date -name of last programming registered in file
-		  	printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
-        #display the 2 names of bin files
-      	if [ ! -z ${bin_list[1]} ]; then
-	    	  printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
-			  else
-	  	  printf "\t%s \n" "${bin_list[0]}"
-			  fi
-	  	echo ""
-	  fi
+    if [[ ${line:0:6} == ${p[$i]:0:6} ]]; then
+      parse_info=($line)
+      board_vendor[$i]=${parse_info[1]}
+      fpga_manuf[$i]=${parse_info[2]}
+      flash_partition[$i]=${parse_info[3]}
+      flash_block[$i]=${parse_info[4]}
+      flash_interface[$i]=${parse_info[5]}
+      flash_secondary[$i]=${parse_info[6]}
+      component_list=(${line:6:23})
+      bin_list=(${f:51})
+      #display Card number : slot - Card name - date -name of last programming registered in file
+      printf "${bold}%-8s${normal} %-22s %-29s %-20s \n" " Card $card_slot_hex: ${allcards_array[$i]}" "${component_list[0]}" "${f:0:29}" "${f:30:20}"
+      #display the 2 names of bin files
+      if [ ! -z ${bin_list[1]} ]; then
+        printf "\t%s \n\t%s\n" "${bin_list[0]}"  "${bin_list[1]}"
+      else
+        printf "\t%s \n" "${bin_list[0]}"
+      fi
+      echo ""
+    fi
   done < "$package_root/oc-devices"
 
   i=$[$i+1]
@@ -282,25 +282,25 @@ printf "\n"
 # $card parameter when provided needs to be the slot number
 # we translate it to card position in the old numbering way (eg: 0 to n-1)
 if [ ! -z $paramcard ]; then
-	# Assign C to 4 digits hexa
+  # Assign C to 4 digits hexa
   #	card4=`printf "%04x" $card`
-	card4=$(printf '%04x' "0x${card}")
-	echo "Slot is: $card4"
-	echo $allcards
-	# search for card4 occurence and get line number in list of slots
-	ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
-	
-	if [ -z $ln ]; then
-		echo "Requested slot $card4 can't be found among :"
-		echo $allcards
-		exit 2
-	else
-		ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
-		# echo "Corresponding slot is found at position: $ln"
-		# Calculate the position number from line number to use script in the old way
-		c=$(($ln - 1))
-		#echo Card is: card$c
-	fi
+  card4=$(printf '%04x' "0x${card}")
+  echo "Slot is: $card4"
+  echo $allcards
+  # search for card4 occurence and get line number in list of slots
+  ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+
+  if [ -z $ln ]; then
+    echo "Requested slot $card4 can't be found among :"
+    echo $allcards
+    exit 2
+  else
+    ln=$(grep  -n ${card4} <<<$allcards| cut -f1 -d:)
+    # echo "Corresponding slot is found at position: $ln"
+    # Calculate the position number from line number to use script in the old way
+    c=$(($ln - 1))
+    #echo Card is: card$c
+  fi
 else
   # prompt card to flash to
   #  while true; do
@@ -367,11 +367,11 @@ if [ -z "$flash_address" ]; then
   fi
   else if [[ $1 =~ "fw_" ]]
   then
-     printf "===================================================================================\n"
-     echo "NOTE : You are in the process of programming a CAPI2 image in FACTORY area!"
-     echo "       A reboot or power cycle will be needed to re-enumerate the cards."
-     echo "       You may need to then switch your card back to USER area (capi-reset <card_nb> user)"
-     printf "===================================================================================\n"
+    printf "===================================================================================\n"
+    echo "NOTE : You are in the process of programming a CAPI2 image in FACTORY area!"
+    echo "       A reboot or power cycle will be needed to re-enumerate the cards."
+    echo "       You may need to then switch your card back to USER area (capi-reset <card_nb> user)"
+    printf "===================================================================================\n"
   fi
 fi
 if [ -z "$flash_block_size" ]; then
@@ -425,14 +425,14 @@ while true; do
   #------------------------------------------------------------------------------------------------------------------
   # We extract the card name (such as "AD9V3") from the provided bin file names $1 and $2 (primary and secondary) and check they are consistent
   file_to_program=`echo $1 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
- 	if [ $flash_type == "SPIx8" ]; then
-  	file_to_program2=`echo $2 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
-	  if [[ ${file_to_program} !=  ${file_to_program2} ]]; then
-		  printf "\n>>>=================================================================================<<<\n"
-	  	printf ">>> ${bold}${red}ERROR:${normal} Inconsistency between primary ${bold}${file_to_program}${normal} and secondary ${bold}${file_to_program2}${normal} selected boards!!\n"
-		  printf ">>>=================================================================================<<<\n"
-		  exit 3    # we exit whenever the primary and secondary file are board inconsistent
-	  fi
+  if [ $flash_type == "SPIx8" ]; then
+    file_to_program2=`echo $2 |awk -F 'oc_20' '{ print $2 }' | awk -F 'OC-' '{ print $2 }'|awk -F '_'  '{ print $1 }'`
+    if [[ ${file_to_program} !=  ${file_to_program2} ]]; then
+      printf "\n>>>=================================================================================<<<\n"
+      printf ">>> ${bold}${red}ERROR:${normal} Inconsistency between primary ${bold}${file_to_program}${normal} and secondary ${bold}${file_to_program2}${normal} selected boards!!\n"
+      printf ">>>=================================================================================<<<\n"
+      exit 3    # we exit whenever the primary and secondary file are board inconsistent
+    fi
   fi
 
   #------------------------------------------------------------------------------------------------------------------
@@ -456,36 +456,36 @@ while true; do
   
   # Bin images have NOT been made for card type (for example AD9H7 bin images while card type is AD9V3)-> NOT Good !
   if [[ ${file_to_program} !=  ${card_to_program} ]]; then 
-	  printf "\n>>>=================================================================================<<<\n"
-	  printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
-	  printf ">>> You may crash and lose your card if you force the programming.\n" 
-	  printf ">>> You can force at your own risks using the '-f' option.\n" 
-	  printf ">>>=================================================================================<<<\n"
-		
+    printf "\n>>>=================================================================================<<<\n"
+    printf ">>> ${bold}${red}ERROR:${normal} You have chosen to program a ${bold}${card_to_program}${normal} board with a file built for a ${bold}${file_to_program}${normal}!!\n"
+    printf ">>> You may crash and lose your card if you force the programming.\n" 
+    printf ">>> You can force at your own risks using the '-f' option.\n" 
+    printf ">>>=================================================================================<<<\n"
+
     # Not using the force mode
-	  if (($force != 1)); then
+    if (($force != 1)); then
       # We're in automation mode, so exiting
-	  	if (($automation == 1)); then
-	  		exit 3
+      if (($automation == 1)); then
+        exit 3
       # We're in interactive mode, so asking the user  
-		  else
-			  read -p "Do you really want to continue? [y/n] " yn
-			  case $yn in
-				  [Yy]* ) break;;
-				  [Nn]* ) exit;;
-				  * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-			  esac
-		  fi
+      else
+        read -p "Do you really want to continue? [y/n] " yn
+        case $yn in
+          [Yy]* ) break;;
+          [Nn]* ) exit;;
+          * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+        esac
+      fi
     
     # Using the force mode, so warning and continue
-	  else
-		  printf "${bold}${red}WARNING: ${normal}Force mode was required, although file is not matching board !!\n"
-		  break
-	  fi
+    else
+      printf "${bold}${red}WARNING: ${normal}Force mode was required, although file is not matching board !!\n"
+      break
+      fi
 
   # Bin images have been made for card type (for example AD9V3 bin images while card type is AD9V3)-> let's continue
   else
-  	break
+    break
   fi
 
 done
@@ -494,7 +494,7 @@ done
 # We display a summary telling we're going to flash
 printf "Continue to flash ${bold}$1${normal} ";
 if [ $flash_type == "SPIx8" ]; then
-	printf "and ${bold}$2${normal} "
+  printf "and ${bold}$2${normal} "
 fi
 printf "to ${bold}card position $c${normal}(slot$card4)\n"
 
@@ -552,52 +552,52 @@ fi   # end of "PRmode == 1" test
 if (($force != 1)); then
 
   # Partial reconfig is at risk
-	if [ $PR_risk == 1 ]; then
+  if [ $PR_risk == 1 ]; then
     # We're in automation mode, so exiting
-		if (($automation == 1)); then
-			exit 4
+    if (($automation == 1)); then
+      exit 4
     # We're in interactive mode, so asking the user
-		else
-			read -p "Do you want to continue? [y/n] " yn
-			case $yn in
-				[Yy]* ) ;;
-				[Nn]* ) exit;;
-				* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-			esac
-		fi
+    else
+      read -p "Do you want to continue? [y/n] " yn
+      case $yn in
+        [Yy]* ) ;;
+        [Nn]* ) exit;;
+        * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+      esac
+    fi
 
   # Partial reconfig is OK
-	else 
+  else 
     # We're in interactive mode, so just asking the user before continuing
-		if (($automation != 1)); then
-			read -p "Do you want to continue? [y/n] " yn
-			case $yn in
-				[Yy]* ) ;;
-				[Nn]* ) exit;;
-				* ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
-			esac
-		fi
-	fi
+    if (($automation != 1)); then
+      read -p "Do you want to continue? [y/n] " yn
+      case $yn in
+        [Yy]* ) ;;
+        [Nn]* ) exit;;
+        * ) printf "${bold}ERROR:${normal} Please answer with y or n\n";;
+      esac
+    fi
+  fi
 
- # Using the force mode
- else 
+# Using the force mode
+else 
   # Partial reconfig is at risk, but force mode so warning and continue
-	if  [ $PR_risk == 1 ]; then
-		 printf "${bold}${red}WARNING: ${normal}Force mode was required, we continue although there were errors !!"
-	fi
+  if  [ $PR_risk == 1 ]; then
+    printf "${bold}${red}WARNING: ${normal}Force mode was required, we continue although there were errors !!"
+  fi
 fi
 
 #------------------------------------------------------------------------------------------------------------------
 # Check if lowlevel flash utility is existing and executable
 if [ ! -x $package_root/oc-flash ]; then
-    	printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
-    	exit 5
+  printf "${bold}ERROR:${normal} Utility capi-flash not found!\n"
+  exit 5
 fi
 
 #------------------------------------------------------------------------------------------------------------------
 # Reset to card/flash registers to known state (factory) 
 if [ "$reset_factory" -eq 1 ]; then
-      	oc-reset $c factory "Preparing card for flashing"
+  oc-reset $c factory "Preparing card for flashing"
 fi
 
 #------------------------------------------------------------------------------------------------------------------
@@ -616,13 +616,13 @@ mkdir -p `dirname $LockDir`
 # Second step: trying to create $LockDir locking directory (typically into /var/ocxl)
 # The $LockDir creation succeeded => implement a trap to be sure the $LockDir will be deleted when script exits
 if mkdir $LockDir 2>/dev/null; then
-	echo "${blue}$LockDir created${normal}"
-	# The following line prepares a cleaning of the newly created dir when script will exit
-	trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT	
+  echo "${blue}$LockDir created${normal}"
+  # The following line prepares a cleaning of the newly created dir when script will exit
+  trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT	
 
- # The $LockDir creation failed because a LockDir already exists ("mkdir" fails if dir already exists)
+# The $LockDir creation failed because a LockDir already exists ("mkdir" fails if dir already exists)
 else
-	printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Card has been locked already!\n"
+  printf "${bold}${red}ERROR:${normal} Existing LOCK for card ${bdf} => Card has been locked already!\n"
 
   # Comparing lock creation date with last boot date
   DateLastBoot=`who -b | awk '{print $3 " " $4}'`
@@ -634,25 +634,25 @@ else
   # Lock creation date is earlier than last boot date, so this lock should not be here anymore
   # Deleting the Lock dir and creating a new one
   if [ $EpochLockDir -lt $EpochLastBoot ]; then
-	  echo
-	  echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
-	  echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
-	  echo "$LockDir modified BEFORE last boot"
-	  echo;echo "======================================================="
-	  echo "LOCK is not supposed to still be here"
-	  echo "  ==> Deleting and recreating $LockDir"
-	  rmdir $LockDir
-	  mkdir $LockDir
-	  echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
-	  # The following line prepares a cleaning of the newly created dir when script will output
-	  trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
+    echo
+    echo "Last BOOT:              `date --date @$EpochLastBoot` ($EpochLastBoot)"
+    echo "Last LOCK modification: $DateLockDir ($EpochLockDir)"
+    echo "$LockDir modified BEFORE last boot"
+    echo;echo "======================================================="
+    echo "LOCK is not supposed to still be here"
+    echo "  ==> Deleting and recreating $LockDir"
+    rmdir $LockDir
+    mkdir $LockDir
+    echo -e "${blue}$LockDir created during oc-flash-scrip${normal}"
+    # The following line prepares a cleaning of the newly created dir when script will output
+    trap 'rm -rf "$LockDir";echo "${blue}$LockDir removed at the end of oc-flash-script${normal}"' EXIT
 
   # Lock creation date is later than last boot date, so card lock is accurate => exiting now
   else
-	  echo "$LockDir modified AFTER last boot"
-	  printf "${bold}${red}ERROR:${normal}  Card has been recently locked!\n"
-	  echo "Exiting..."
-	  exit 10
+    echo "$LockDir modified AFTER last boot"
+    printf "${bold}${red}ERROR:${normal}  Card has been recently locked!\n"
+    echo "Exiting..."
+    exit 10
   fi
 
 fi
@@ -662,21 +662,21 @@ fi
 
 # SPIx8 needs two file inputs (primary/secondary)
 if [ $flash_type == "SPIx8" ]; then
-	# $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
-	# until multiboot is enabled, force writing to 0x0
-	$package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
+  # $package_root/oc-flash --type $flash_type --file $1 --file2 $2   --card ${allcards_array[$c]} --address $flash_address --address2 $flash_address2 --blocksize $flash_block_size &
+  # until multiboot is enabled, force writing to 0x0
+  $package_root/oc-flash --image_file1 $1 --image_file2 $2   --devicebdf $bdf --startaddr 0x0
 
 # Not SPIx8, so only one file input (primary)
 else
-	$package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
+  $package_root/oc-flash --image_file1 $1 --devicebdf $bdf --startaddr 0x0
 fi
 
 #------------------------------------------------------------------------------------------------------------------
 # Updating /var/ocxl/cardxx flash history file
 if [ $flash_type == "SPIx8" ]; then
-	printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
+  printf "%-29s %-20s %s %s\n" "$(date)" "$(logname)" $1 $2 > /var/ocxl/card$c
 else
-	printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
+  printf "%-29s %-20s %s\n" "$(date)" "$(logname)" $1 > /var/ocxl/card$c
 fi
 
 #------------------------------------------------------------------------------------------------------------------
@@ -687,13 +687,13 @@ trap - TERM INT
 wait $PID
 RC=$?
 if [ $RC -eq 0 ]; then
-	if [ $PR_mode == 0 ]; then
-		#  reload code from Flash (oc-reload calls a oc_reset)
-		#  As we call routines, not shells, we keep the current card LockDir
-      		printf " Auto reloading the image from flash.\n"
-      		source $package_root/oc-reload.sh -L -C ${allcards_array[$c]}
-	else
-		#  In PR mode, reset cleans the logic but could be not mandatory
-		reset_card $bdf factory " Resetting OpenCAPI card in slot $bdf"
-	fi
+  if [ $PR_mode == 0 ]; then
+    #  reload code from Flash (oc-reload calls a oc_reset)
+    #  As we call routines, not shells, we keep the current card LockDir
+    printf " Auto reloading the image from flash.\n"
+    source $package_root/oc-reload.sh -L -C ${allcards_array[$c]}
+  else
+    #  In PR mode, reset cleans the logic but could be not mandatory
+    reset_card $bdf factory " Resetting OpenCAPI card in slot $bdf"
+  fi
 fi
